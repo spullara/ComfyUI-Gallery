@@ -1,7 +1,7 @@
 [project]
 name = "ComfyUI-Gallery"
-description = "Real-time Output Gallery for ComfyUI with image metadata inspection."
-version = "1.0.2" 
+description = "Real-time Gallery for ComfyUI with image metadata inspection. Support for images and video."
+version = "1.1.0" 
 license = {file = "LICENSE"} 
 
 [project.urls]

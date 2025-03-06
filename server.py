@@ -1,79 +1,21 @@
 from server import PromptServer
 from aiohttp import web
-from .gallery_node import GalleryNode
 import os
 import folder_paths
-import threading
 import time
 from datetime import datetime
 import json
 import math
+
+from .folder_monitor import FileSystemMonitor, scan_directory_initial
+from .folder_scanner import _scan_for_images
 
 # Add ComfyUI root to sys.path HERE
 import sys
 comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(comfy_path)
 
-class FileSystemMonitor(threading.Thread):
-    """Monitors the output directory for changes."""
-
-    def __init__(self, base_path, interval=1.0):
-        super().__init__(daemon=True)
-        self.base_path = base_path
-        self.interval = interval
-        self.last_known_files = set()
-        self.running = True
-        self.thread = None
-
-    def run(self):
-        print("FileSystemMonitor: Starting monitoring thread")
-        while self.running:
-            try:
-                current_files = self.scan_directory(self.base_path)
-                if current_files != self.last_known_files: # **RESTORED CHANGE DETECTION LOGIC HERE**
-                    print("FileSystemMonitor: Change detected!")
-                    PromptServer.instance.send_sync("Gallery.file_change", {})
-                    self.last_known_files = current_files
-                # else:
-                    # print("FileSystemMonitor: No changes detected.") # Keep for debug
-                time.sleep(self.interval)
-            except Exception as e:
-                print(f"FileSystemMonitor: Error in monitoring thread: {e}")
-
-    def scan_directory(self, path):
-        """Scans and returns a set of (filepath, modified_time) tuples."""
-        files = set()
-        for root, _, filenames in os.walk(path):
-            for filename in filenames:
-                if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-                    full_path = os.path.join(root, filename)
-                    try:
-                        modified_time = os.path.getmtime(full_path)
-                        files.add((full_path, modified_time))  # Use tuple
-                    except Exception as e:
-                        print(f"FileSystemMonitor: Error accessing {full_path}: {e}")
-        return files
-
-
-    def start_monitoring(self):
-        if self.thread is None:
-            self.thread = threading.Thread(target=self.run, daemon=True)
-            self.thread.start()
-            print("FileSystemMonitor: Monitoring thread started.")
-        else:
-            print("FileSystemMonitor: Monitoring thread already running.")
-
-    def stop_monitoring(self):
-        self.running = False
-        if self.thread and self.thread.is_alive():
-            self.thread.join()
-        print("FileSystemMonitor: Monitoring thread stopped.")
-
-# --- Initialize and start monitor ---
-output_path = os.path.normpath(os.path.join(folder_paths.get_output_directory(), "..", "output"))
-monitor = FileSystemMonitor(output_path)
-monitor.start_monitoring()  # Start the monitoring thread
-
+monitor = None # Initialize monitor to None - monitoring starts on request
 
 def sanitize_json_data(data):
     """Recursively sanitizes data to be JSON serializable."""
@@ -93,12 +35,14 @@ def sanitize_json_data(data):
 
 @PromptServer.instance.routes.get("/Gallery/images")
 async def get_gallery_images(request):
-    try:
-        gallery_node = GalleryNode()
-        folders_with_metadata, _ = gallery_node._scan_for_images(
-            os.path.join(folder_paths.get_output_directory(), "..", "output"), "output", True
-        )
+    """Endpoint to get gallery images, accepts relative_path."""
+    relative_path = request.rel_url.query.get("relative_path", "./")
+    full_monitor_path = os.path.normpath(os.path.join(folder_paths.get_output_directory(), "..", "output", relative_path))
 
+    try:
+        folders_with_metadata, _ = _scan_for_images(
+            full_monitor_path, "output", True
+        )
         sanitized_folders = sanitize_json_data(folders_with_metadata)
         json_string = json.dumps({"folders": sanitized_folders})
         return web.Response(text=json_string, content_type="application/json")
@@ -107,6 +51,44 @@ async def get_gallery_images(request):
         import traceback
         traceback.print_exc()
         return web.Response(status=500, text=str(e))
+
+
+@PromptServer.instance.routes.post("/Gallery/monitor/start")
+async def start_gallery_monitor(request):
+    """Endpoint to start gallery monitoring, accepts relative_path."""
+    global monitor
+    if monitor and monitor.thread and monitor.thread.is_alive(): # Use monitor.thread.is_alive()
+        print("FileSystemMonitor: Monitor already running, stopping previous monitor.")
+        monitor.stop_monitoring()
+
+    try:
+        data = await request.json()
+        relative_path = data.get("relative_path", "./")
+        full_monitor_path = os.path.normpath(os.path.join(folder_paths.get_output_directory(), "..", "output", relative_path))
+
+        if not os.path.isdir(full_monitor_path):
+            return web.Response(status=400, text=f"Invalid relative_path: {relative_path}, path not found")
+
+        monitor = FileSystemMonitor(full_monitor_path)
+        monitor.start_monitoring()
+        return web.Response(text="Gallery monitor started", content_type="text/plain")
+
+    except Exception as e:
+        print(f"Error starting gallery monitor: {e}")
+        return web.Response(status=500, text=str(e))
+
+
+@PromptServer.instance.routes.post("/Gallery/monitor/stop")
+async def stop_gallery_monitor(request):
+    """Endpoint to stop gallery monitoring."""
+    global monitor
+    if monitor and monitor.thread and monitor.thread.is_alive(): # Use monitor.thread.is_alive()
+        monitor.stop_monitoring()
+        monitor = None
+        return web.Response(text="Gallery monitor stopped", content_type="text/plain")
+    else:
+        return web.Response(text="Gallery monitor is not running.", status=200, content_type="text/plain")
+
 
 @PromptServer.instance.routes.patch("/Gallery/updateImages")
 async def newSettings(request):

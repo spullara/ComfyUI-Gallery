@@ -196,7 +196,8 @@ class GalleryEventHandler(PatternMatchingEventHandler):
 
         if changes:
             print("FileSystemMonitor: Changes detected after debounce, sending updates")
-            PromptServer.instance.send_sync("Gallery.file_change", changes)
+            from .server import sanitize_json_data
+            PromptServer.instance.send_sync("Gallery.file_change", sanitize_json_data(changes))
         else:
             print("FileSystemMonitor: Changes detected by watchdog, but no relevant gallery changes after debounce.")
 

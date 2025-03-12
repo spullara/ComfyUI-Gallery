@@ -15,7 +15,15 @@ import sys
 comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(comfy_path)
 
-monitor = None # Initialize monitor to None - monitoring starts on request
+monitor = None
+# Placeholder directory.  This *must* exist, even if it's empty.
+PLACEHOLDER_DIR = os.path.abspath("./placeholder_static")
+if not os.path.exists(PLACEHOLDER_DIR):
+    os.makedirs(PLACEHOLDER_DIR)
+
+# Add a *placeholder* static route.  This gets modified later.
+PromptServer.instance.routes.static('/static_gallery', PLACEHOLDER_DIR, follow_symlinks=True, name='static_gallery_placeholder') #give a name to the route
+
 
 def sanitize_json_data(data):
     """Recursively sanitizes data to be JSON serializable."""
@@ -52,12 +60,11 @@ async def get_gallery_images(request):
         traceback.print_exc()
         return web.Response(status=500, text=str(e))
 
-
 @PromptServer.instance.routes.post("/Gallery/monitor/start")
 async def start_gallery_monitor(request):
     """Endpoint to start gallery monitoring, accepts relative_path."""
     global monitor
-    if monitor and monitor.thread and monitor.thread.is_alive(): # Use monitor.thread.is_alive()
+    if monitor and monitor.thread and monitor.thread.is_alive():
         print("FileSystemMonitor: Monitor already running, stopping previous monitor.")
         monitor.stop_monitoring()
 
@@ -69,28 +76,49 @@ async def start_gallery_monitor(request):
         if not os.path.isdir(full_monitor_path):
             return web.Response(status=400, text=f"Invalid relative_path: {relative_path}, path not found")
 
+        # Find the existing placeholder route.
+        for route in PromptServer.instance.app.router.routes():
+            if route.name == 'static_gallery_placeholder':
+                # Modify the existing route's resource.  This is a bit of a hack,
+                # but it's the most reliable way to update a static route
+                # without causing conflicts.
+                route.resource._directory = pathlib.Path(full_monitor_path) #set the new directory
+                print(f"Serving static files from {full_monitor_path} at /static_gallery")
+                break  # Exit the loop once we've found and modified the route
+        else:  # This 'else' belongs to the 'for' loop
+            print("Error: Placeholder static route not found!")
+            return web.Response(status=500, text="Placeholder route not found.")
+
+
         monitor = FileSystemMonitor(full_monitor_path)
         monitor.start_monitoring()
         return web.Response(text="Gallery monitor started", content_type="text/plain")
 
     except Exception as e:
         print(f"Error starting gallery monitor: {e}")
+        import traceback
+        traceback.print_exc()
         return web.Response(status=500, text=str(e))
-
 
 @PromptServer.instance.routes.post("/Gallery/monitor/stop")
 async def stop_gallery_monitor(request):
     """Endpoint to stop gallery monitoring."""
     global monitor
-    if monitor and monitor.thread and monitor.thread.is_alive(): # Use monitor.thread.is_alive()
+    if monitor and monitor.thread and monitor.thread.is_alive():
         monitor.stop_monitoring()
         monitor = None
-        return web.Response(text="Gallery monitor stopped", content_type="text/plain")
-    else:
-        return web.Response(text="Gallery monitor is not running.", status=200, content_type="text/plain")
 
+    # Reset to placeholder.
+    for route in PromptServer.instance.app.router.routes():
+            if route.name == 'static_gallery_placeholder':
+                route.resource._directory = pathlib.Path(PLACEHOLDER_DIR)
+                print(f"Serving static files from {PLACEHOLDER_DIR} at /static_gallery")
+                break
+    return web.Response(text="Gallery monitor stopped", content_type="text/plain")
 
 @PromptServer.instance.routes.patch("/Gallery/updateImages")
 async def newSettings(request):
     # This route is no longer used
     return web.Response(status=200)
+
+import pathlib # Import pathlib

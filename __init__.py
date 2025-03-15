@@ -2,6 +2,7 @@
 
 # Import and expose the node
 from .server import *
+from .simple_node import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
 # Add ComfyUI root to sys.path HERE
 import sys
@@ -11,4 +12,4 @@ sys.path.append(comfy_path)
 
 WEB_DIRECTORY = "./web/js"
 
-__all__ = ['WEB_DIRECTORY'] # Removed NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY'] 

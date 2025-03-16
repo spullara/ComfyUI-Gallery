@@ -13,7 +13,6 @@ class GalleryNode:
     OUTPUT_NODE = True
 
     def gallery_node(self):
-        # Initial load is handled by server startup.
         return ()
 
 NODE_CLASS_MAPPINGS = {"GalleryNode": GalleryNode}

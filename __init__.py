@@ -2,7 +2,7 @@
 
 # Import and expose the node
 from .server import *
-from .simple_node import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+from .gallery_node import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
 # Add ComfyUI root to sys.path HERE
 import sys

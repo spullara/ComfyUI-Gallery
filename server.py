@@ -1,3 +1,4 @@
+# server.py
 from server import PromptServer
 from aiohttp import web
 import os
@@ -7,8 +8,11 @@ from datetime import datetime
 import json
 import math
 import pathlib
+import threading
+import queue
+import asyncio
 
-from .folder_monitor import FileSystemMonitor, scan_directory_initial
+from .folder_monitor import FileSystemMonitor
 from .folder_scanner import _scan_for_images
 
 # Add ComfyUI root to sys.path HERE
@@ -25,6 +29,8 @@ if not os.path.exists(PLACEHOLDER_DIR):
 # Add a *placeholder* static route.  This gets modified later.
 PromptServer.instance.routes.static('/static_gallery', PLACEHOLDER_DIR, follow_symlinks=True, name='static_gallery_placeholder') #give a name to the route
 
+# Initialize scan_lock here
+PromptServer.instance.scan_lock = threading.Lock()
 
 def sanitize_json_data(data):
     """Recursively sanitizes data to be JSON serializable."""
@@ -41,25 +47,54 @@ def sanitize_json_data(data):
     else:
         return str(data)
 
-
 @PromptServer.instance.routes.get("/Gallery/images")
 async def get_gallery_images(request):
     """Endpoint to get gallery images, accepts relative_path."""
     relative_path = request.rel_url.query.get("relative_path", "./")
     full_monitor_path = os.path.normpath(os.path.join(folder_paths.get_output_directory(), "..", "output", relative_path))
 
-    try:
-        folders_with_metadata, _ = _scan_for_images(
-            full_monitor_path, "output", True
-        )
-        sanitized_folders = sanitize_json_data(folders_with_metadata)
-        json_string = json.dumps({"folders": sanitized_folders})
-        return web.Response(text=json_string, content_type="application/json")
-    except Exception as e:
-        print(f"Error in /Gallery/images: {e}")
-        import traceback
-        traceback.print_exc()
-        return web.Response(status=500, text=str(e))
+    # Use a thread-safe queue to communicate between threads.
+    result_queue = queue.Queue()
+
+    def thread_target():
+        """Target function for the scanning thread."""
+        with PromptServer.instance.scan_lock:
+            try:
+                folders_with_metadata, _ = _scan_for_images(
+                    full_monitor_path, "output", True
+                )
+                result_queue.put(folders_with_metadata)  # Put the result in the queue
+            except Exception as e:
+                result_queue.put(e)  # Put the exception in the queue
+
+    def on_scan_complete(folders_with_metadata):
+            """Callback executed in the main thread to send the response."""
+
+            try:
+                if isinstance(folders_with_metadata, Exception):
+                    print(f"Error in /Gallery/images: {folders_with_metadata}")
+                    import traceback
+                    traceback.print_exc()
+                    return web.Response(status=500, text=str(folders_with_metadata))
+
+                sanitized_folders = sanitize_json_data(folders_with_metadata)
+                json_string = json.dumps({"folders": sanitized_folders})
+                return web.Response(text=json_string, content_type="application/json")
+            except Exception as e:
+                    print(f"Error in on_scan_complete: {e}")
+                    return web.Response(status=500, text=str(e))
+
+
+    # Start the scanning in a separate thread.
+    scan_thread = threading.Thread(target=thread_target)
+    scan_thread.start()
+    # Wait result and process it.
+    while True:
+        if not result_queue.empty():
+            result = result_queue.get()
+            return on_scan_complete(result)
+        await asyncio.sleep(0.01)
+
 
 @PromptServer.instance.routes.post("/Gallery/monitor/start")
 async def start_gallery_monitor(request):
@@ -80,9 +115,7 @@ async def start_gallery_monitor(request):
         # Find the existing placeholder route.
         for route in PromptServer.instance.app.router.routes():
             if route.name == 'static_gallery_placeholder':
-                # Modify the existing route's resource.  This is a bit of a hack,
-                # but it's the most reliable way to update a static route
-                # without causing conflicts.
+                # Modify the existing route's resource.
                 route.resource._directory = pathlib.Path(full_monitor_path) #set the new directory
                 print(f"Serving static files from {full_monitor_path} at /static_gallery")
                 break  # Exit the loop once we've found and modified the route

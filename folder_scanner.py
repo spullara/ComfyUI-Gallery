@@ -1,3 +1,4 @@
+# folder_scanner.py
 import os
 from datetime import datetime
 from .metadata_extractor import buildMetadata  # Import metadata extractor
@@ -27,7 +28,7 @@ def _scan_for_images(full_base_path, base_path, include_subfolders):
                     current_files.add(full_path)
 
             for full_path, entry in file_entries:
-                if entry.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.mp4', '.gif')): # ADDED: .mp4 and .gif extensions
+                if entry.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.mp4', '.gif', '.webm')): # ADDED: .mp4 and .gif extensions
                     try:
                         timestamp = os.path.getmtime(full_path)
                         date_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")

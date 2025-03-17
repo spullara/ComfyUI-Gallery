@@ -628,7 +628,8 @@ export class Gallery {
         imageContainer.classList.add('image-container-inner');
 
         if (
-            !imageInfo.name.endsWith(".mp4")
+            !imageInfo.name.endsWith(".mp4") &&
+            !imageInfo.name.endsWith(".webm")
         ) {
             const imageElement = document.createElement('img');
             imageElement.alt = imageInfo.name;
@@ -669,7 +670,8 @@ export class Gallery {
 
         if (
             !imageInfo.name.endsWith(".gif") &&
-            !imageInfo.name.endsWith(".mp4")
+            !imageInfo.name.endsWith(".mp4") &&
+            !imageInfo.name.endsWith(".webm")
         ) {
             const infoButton = document.createElement('button');
             infoButton.classList.add('info-button');
@@ -703,7 +705,10 @@ export class Gallery {
         closeButton.onclick = () => this.closeFullscreenView();
         this.fullscreenContainer.appendChild(closeButton);
 
-        if (!imageUrl.includes(".mp4&subfolder")) {
+        if (
+            !imageUrl.includes(".mp4") &&
+            !imageUrl.includes(".webm")
+        ) {
             this.fullscreenImage = document.createElement('img');
             this.fullscreenImage.classList.add('fullscreen-image');
             this.fullscreenImage.src = imageUrl;

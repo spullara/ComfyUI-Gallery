@@ -22,7 +22,7 @@ sys.path.append(comfy_path)
 
 monitor = None
 # Placeholder directory.  This *must* exist, even if it's empty.
-PLACEHOLDER_DIR = os.path.abspath("./placeholder_static")
+PLACEHOLDER_DIR = os.path.join(comfy_path, "output") # os.path.abspath("./placeholder_static")
 if not os.path.exists(PLACEHOLDER_DIR):
     os.makedirs(PLACEHOLDER_DIR)
 

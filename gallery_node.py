@@ -9,11 +9,11 @@ class GalleryNode:
 
     RETURN_TYPES = ()
     FUNCTION = "gallery_node"
-    CATEGORY = "Gallery"
+    CATEGORY = "utils"
     OUTPUT_NODE = True
 
     def gallery_node(self):
         return ()
 
 NODE_CLASS_MAPPINGS = {"GalleryNode": GalleryNode}
-NODE_DISPLAY_NAME_MAPPINGS = {"GalleryNode": "Gallery Buttons"}
+NODE_DISPLAY_NAME_MAPPINGS = {"GalleryNode": "Gallery Button"}

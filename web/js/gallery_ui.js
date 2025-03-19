@@ -38,22 +38,22 @@ function stopMonitoring() {
 }
 
 export function resetGallery(relativePath) {
-  gallery.clearGallery();
-  startMonitoring(relativePath);
+    gallery.clearGallery();
+    startMonitoring(relativePath);
 
-  app.api.fetchApi(`/Gallery/images?relative_path=${encodeURIComponent(relativePath)}`)
-      .then(response => response.text())
-      .then(text => {
-          try {
-              return JSON.parse(text);
-          } catch (e) {
-              console.error("Error parsing JSON response:", e);
-              return { folders: {} };
-          }
-      })
-      .then(data => {
-          gallery.initializeFolders(data.folders || {});
-      });
+    app.api.fetchApi(`/Gallery/images?relative_path=${encodeURIComponent(relativePath)}`)
+        .then(response => response.text())
+        .then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error("Error parsing JSON response:", e);
+                return { folders: {} };
+            }
+        })
+        .then(data => {
+            gallery.initializeFolders(data.folders || {});
+        });
 }
 
 app.registerExtension({
@@ -72,13 +72,13 @@ app.registerExtension({
                 gallerySettings: gallerySettingsInstance // Pass gallerySettingsInstance here
             });
             gallerySettingsInstance.gallery = gallery;
-    
+
             if (initialSettings.openButtonFloating) { // RESTORE FLOATING BUTTON STATE ON LOAD
                 gallery.enableFloatingButton(); // Enable floating button if setting is true
             }
-    
+
             startMonitoring(initialSettings.relativePath);
-    
+
             app.api.fetchApi(`/Gallery/images?relative_path=${encodeURIComponent(initialSettings.relativePath)}`)
                 .then(response => response.text())
                 .then(text => {
@@ -93,7 +93,7 @@ app.registerExtension({
                     console.log("data:", data);
                     gallery.initializeFolders(data.folders || {});
                 });
-             if (initialSettings.hideOpenButton) { // ADDED: Initial button visibility
+            if (initialSettings.hideOpenButton) { // ADDED: Initial button visibility
                 gallery.updateHideOpenButton(initialSettings.hideOpenButton); // Enable floating button if setting is true
             }
         }
@@ -108,7 +108,7 @@ app.registerExtension({
             node.addWidget("button", "Open Gallery", null, () => {
                 if (gallery) { gallery.openGallery(); }
             });
-             node.addWidget("button", "Settings", null, () => {
+            node.addWidget("button", "Settings", null, () => {
                 if (gallerySettingsInstance) { gallerySettingsInstance.openSettingsPopup(); }
             });
         }

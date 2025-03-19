@@ -1,4 +1,4 @@
-# server.py
+# server.py (Corrected)
 from server import PromptServer
 from aiohttp import web
 import os
@@ -11,6 +11,7 @@ import pathlib
 import threading
 import queue
 import asyncio
+import shutil
 
 from .folder_monitor import FileSystemMonitor
 from .folder_scanner import _scan_for_images
@@ -22,7 +23,7 @@ sys.path.append(comfy_path)
 
 monitor = None
 # Placeholder directory.  This *must* exist, even if it's empty.
-PLACEHOLDER_DIR = os.path.join(comfy_path, "output") # os.path.abspath("./placeholder_static")
+PLACEHOLDER_DIR = os.path.join(comfy_path, "output")  # os.path.abspath("./placeholder_static")
 if not os.path.exists(PLACEHOLDER_DIR):
     os.makedirs(PLACEHOLDER_DIR)
 
@@ -152,3 +153,101 @@ async def stop_gallery_monitor(request):
 async def newSettings(request):
     # This route is no longer used
     return web.Response(status=200)
+
+@PromptServer.instance.routes.post("/Gallery/delete")
+async def delete_image(request):
+    """Endpoint to delete an image."""
+    try:
+        data = await request.json()
+        image_url = data.get("image_path")  # Get the image URL
+
+        if not image_url:
+            return web.Response(status=400, text="image_path is required")
+
+        # Extract relative path from URL
+        if image_url.startswith("/static_gallery/"):
+            relative_path = image_url[len("/static_gallery/"):]
+        else:
+            return web.Response(status=400, text="Invalid image_path format")
+
+        # Construct the full absolute path
+        base_output_dir = folder_paths.get_output_directory()  # Get ComfyUI's output directory
+        # Go up one level from the *output* directory, then into "output", then the relative path
+        full_image_path = os.path.normpath(os.path.join(base_output_dir, "..", "output", relative_path))
+
+
+        # Security checks:
+        if not os.path.exists(full_image_path):
+            return web.Response(status=404, text=f"File not found: {full_image_path}")  # Correct path in error
+        if not full_image_path.startswith(os.path.realpath(base_output_dir)):
+             return web.Response(status=403, text="Access denied: File outside of output directory")
+
+
+        os.remove(full_image_path)
+        return web.Response(text=f"Image deleted: {image_url}")
+
+    except Exception as e:
+        print(f"Error deleting image: {e}")
+        return web.Response(status=500, text=str(e))
+
+@PromptServer.instance.routes.post("/Gallery/move")
+async def move_image(request):
+    """Endpoint to move an image to a new location."""
+    try:
+        data = await request.json()
+        source_path = data.get("source_path")
+        target_path = data.get("target_path")
+
+        print("source_path:" + source_path)
+
+        if not source_path or not target_path:
+            return web.Response(status=400, text="source_path and target_path are required")
+
+        # Construct the full absolute paths, correctly handling the ComfyUI output directory.
+        base_output_dir = folder_paths.get_output_directory()
+        full_source_path = os.path.join(base_output_dir, source_path)
+        full_target_path = os.path.join(base_output_dir, target_path)
+
+        print("base_output_dir:" + base_output_dir)
+        print("full_source_path:" + full_source_path)
+        print("full_target_path:" + full_target_path)
+
+        base = source_path.split("/")[0]
+
+        full_source_path = full_source_path.replace(base + "/" + base, base + "/")
+        full_target_path = full_target_path.replace(base + "/" + base, base + "/")
+
+        print("full_source_path:" + full_source_path)
+        print("full_target_path:" + full_target_path)
+
+        # Security checks (CRITICAL):
+        if not os.path.exists(full_source_path):
+            return web.Response(status=404, text=f"Source file not found: {full_source_path}")
+
+        # Prevent path traversal outside of ComfyUI's root and output directory
+        if not os.path.realpath(full_source_path).startswith(os.path.realpath(base_output_dir)) or \
+           not os.path.realpath(full_target_path).startswith(os.path.realpath(base_output_dir)) or \
+           not os.path.realpath(full_source_path).startswith(os.path.realpath(comfy_path)) or \
+           not os.path.realpath(full_target_path).startswith(os.path.realpath(comfy_path)):
+
+            return web.Response(status=403, text="Access denied: File outside of allowed directory")
+
+        # If target is a directory, move into it
+        if os.path.isdir(full_target_path):
+            full_target_path = os.path.join(full_target_path, os.path.basename(full_source_path))
+
+        # Create target directory if it doesn't exist:
+        target_dir = os.path.dirname(full_target_path)
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir, exist_ok=True)
+
+        # Perform the move:
+        shutil.move(full_source_path, full_target_path)
+        return web.Response(text=f"Image moved from {source_path} to {target_path}")
+
+
+    except Exception as e:
+        print(f"Error moving image: {e}")
+        import traceback
+        traceback.print_exc()  # Always good for debugging
+        return web.Response(status=500, text=str(e))

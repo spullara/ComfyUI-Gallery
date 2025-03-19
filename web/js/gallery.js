@@ -1,3 +1,5 @@
+// gallery.js (Modified)
+
 import { galleryStyles } from './gallery_styles.js'; // Import styles
 import { resetGallery } from "./gallery_ui.js";
 /**
@@ -15,11 +17,11 @@ export class Gallery {
     constructor(options) {
         /** @type {HTMLElement} */
         this.openButtonBox = options.openButtonBox;
-         /**
-         * Folders data stored in a nested dictionary format:
-         * folders: { folderName: { fileName: { ...data }  } }
-         * @type {Object<string, Object<string, object>>}
-         */
+        /**
+        * Folders data stored in a nested dictionary format:
+        * folders: { folderName: { fileName: { ...data }  } }
+        * @type {Object<string, Object<string, object>>}
+        */
         this.folders = options.folders || {};
         /** @type {HTMLButtonElement | null} */
         this.galleryButton = null;
@@ -96,7 +98,7 @@ export class Gallery {
         this.currentSettings.openButtonBoxQuery = query;
         const newButtonBox = document.querySelector(query);
         if (newButtonBox) {
-             this.changeButtonBox(newButtonBox);
+            this.changeButtonBox(newButtonBox);
         } else {
             console.warn(`Button box query selector "${query}" not found.`);
         }
@@ -144,8 +146,8 @@ export class Gallery {
         if (this.galleryButton) {
             this.galleryButton.style.display = hide ? 'none' : 'block'; // Or 'inline-block', etc.
         }
-         if (this.floatingButtonContainer) { // Also hide/show floating container
-                this.floatingButtonContainer.style.display = hide ? 'none' : 'flex';
+        if (this.floatingButtonContainer) { // Also hide/show floating container
+            this.floatingButtonContainer.style.display = hide ? 'none' : 'flex';
         }
     }
 
@@ -194,7 +196,7 @@ export class Gallery {
         if (!this.floatingButtonContainer) return;
         this.floatingButtonContainer.style.top = `${window.innerHeight / 2 - this.floatingButtonContainer.offsetHeight / 2}px`;
         this.floatingButtonContainer.style.left = `${window.innerWidth / 2 - this.floatingButtonContainer.offsetWidth / 2}px`;
-         this.ensureButtonInView(); // Ensure button is in view after centering
+        this.ensureButtonInView(); // Ensure button is in view after centering
     }
 
 
@@ -223,7 +225,7 @@ export class Gallery {
         if (adjusted) {
             container.style.top = top + "px";
             container.style.left = left + "px";
-             this.saveFloatingButtonPosition(); // Save adjusted position
+            this.saveFloatingButtonPosition(); // Save adjusted position
         }
     }
 
@@ -264,7 +266,7 @@ export class Gallery {
         window.addEventListener('resize', this.resizeHandler); // Use instance's resizeHandler
     }
 
-     /**
+    /**
      * Removes the window resize event listener.
      */
     removeResizeListener() {
@@ -303,7 +305,7 @@ export class Gallery {
             document.addEventListener('mousemove', elementDrag);
         }
 
-        const elementDrag = (e) =>  {
+        const elementDrag = (e) => {
             e = e || window.event;
             e.preventDefault();
             pos1 = pos3 - e.clientX;
@@ -371,6 +373,7 @@ export class Gallery {
             const folderNavigation = document.createElement('div');
             folderNavigation.classList.add('folder-navigation');
             mainContent.appendChild(folderNavigation);
+            this.folderNavigation = folderNavigation; // Store reference for drag-and-drop
 
             const imageDisplay = document.createElement('div');
             imageDisplay.classList.add('image-display');
@@ -557,6 +560,7 @@ export class Gallery {
             const folderButton = document.createElement('button');
             folderButton.textContent = folderName;
             folderButton.classList.add('folder-button');
+            folderButton.setAttribute('data-folder-name', folderName); // Add data attribute for drag-and-drop
             folderButton.addEventListener('click', () => this.loadFolderImages(folderName));
             if (folderName === this.currentFolder) {
                 folderButton.classList.add('active-folder');
@@ -569,6 +573,8 @@ export class Gallery {
         if (folderNames.length > 0) {
             this.loadFolderImages(this.currentFolder || folderNames[0]);
         }
+
+        this.setupFolderDragAndDrop(); // Set up drag-and-drop listeners after populating
     }
 
     /**
@@ -643,6 +649,10 @@ export class Gallery {
     createImageCard(imageDisplay, imageInfo, index, filteredImages) {
         const card = document.createElement('div');
         card.classList.add('image-card');
+        card.setAttribute('draggable', 'true'); // Make cards draggable
+        card.setAttribute('data-image-url', imageInfo.url); // Store URL for drag-and-drop and delete
+        card.setAttribute('data-image-name', imageInfo.name); // Store image name for drag and drop
+        card.setAttribute('data-image-folder', this.currentFolder);
 
         const imageContainer = document.createElement('div');
         imageContainer.classList.add('image-container-inner');
@@ -722,6 +732,8 @@ export class Gallery {
         imageContainer.appendChild(overlay);
         card.appendChild(imageContainer);
         imageDisplay.appendChild(card);
+
+        this.setupCardDragEvents(card); // Add drag event listeners to the card
     }
 
 
@@ -731,248 +743,378 @@ export class Gallery {
  * @param {number} index - The index of the image within the *filtered* image list.
  * @param {Array<object>} filteredImages - The array of currently filtered images.
  */
-showFullscreenImage(imageUrl, index, filteredImages) {
-    console.log("showFullscreenImage called:", { imageUrl, index, filteredImages }); // DEBUGGING
+    showFullscreenImage(imageUrl, index, filteredImages) {
+        console.log("showFullscreenImage called:", { imageUrl, index, filteredImages }); // DEBUGGING
 
-    this.fullscreenContainer.innerHTML = '';
-    this.fullscreenContainer.style.display = 'flex';
+        this.fullscreenContainer.innerHTML = '';
+        this.fullscreenContainer.style.display = 'flex';
 
-    const closeButton = document.createElement('span');
-    closeButton.classList.add('fullscreen-close');
-    closeButton.innerHTML = '×';
-    closeButton.onclick = () => this.closeFullscreenView();
-    this.fullscreenContainer.appendChild(closeButton);
+        const closeButton = document.createElement('span');
+        closeButton.classList.add('fullscreen-close');
+        closeButton.innerHTML = '×';
+        closeButton.onclick = () => this.closeFullscreenView();
+        this.fullscreenContainer.appendChild(closeButton);
 
-    // Previous Button
-    const prevButton = document.createElement('button');
-    prevButton.textContent = '<';
-    prevButton.style.position = 'absolute';
-    prevButton.style.left = '20px';
-    prevButton.style.top = '50%';
-    prevButton.style.transform = 'translateY(-50%)';
-    prevButton.style.zIndex = '2002';
-    prevButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    prevButton.style.color = 'white';
-    prevButton.style.border = 'none';
-    prevButton.style.padding = '10px 15px';
-    prevButton.style.fontSize = '20px';
-    prevButton.style.cursor = 'pointer';
-    prevButton.onclick = (event) => {
-        event.stopPropagation();
-        if (filteredImages && filteredImages.length > 0) { // More robust check
-            const prevIndex = (index - 1 + filteredImages.length) % filteredImages.length;
-            this.showFullscreenImage(filteredImages[prevIndex].url, prevIndex, filteredImages);
+        // Previous Button
+        const prevButton = document.createElement('button');
+        prevButton.textContent = '<';
+        prevButton.style.position = 'absolute';
+        prevButton.style.left = '20px';
+        prevButton.style.top = '50%';
+        prevButton.style.transform = 'translateY(-50%)';
+        prevButton.style.zIndex = '2002';
+        prevButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        prevButton.style.color = 'white';
+        prevButton.style.border = 'none';
+        prevButton.style.padding = '10px 15px';
+        prevButton.style.fontSize = '20px';
+        prevButton.style.cursor = 'pointer';
+        prevButton.onclick = (event) => {
+            event.stopPropagation();
+            if (filteredImages && filteredImages.length > 0) { // More robust check
+                const prevIndex = (index - 1 + filteredImages.length) % filteredImages.length;
+                this.showFullscreenImage(filteredImages[prevIndex].url, prevIndex, filteredImages);
+            } else {
+                console.warn("showFullscreenImage: prevButton: filteredImages is invalid", filteredImages);
+            }
+        };
+
+        // More robust condition for displaying the previous button
+        if (filteredImages && filteredImages.length > 1 && index > 0) {
+            this.fullscreenContainer.appendChild(prevButton);
+            console.log("Previous button added"); // DEBUG
         } else {
-            console.warn("showFullscreenImage: prevButton: filteredImages is invalid", filteredImages);
+            console.log("Previous button NOT added. Conditions:", {
+                filteredImagesExist: !!filteredImages,
+                lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
+                indexGreaterThan0: index > 0,
+            }); // DEBUG
         }
-    };
-
-    // More robust condition for displaying the previous button
-    if (filteredImages && filteredImages.length > 1 && index > 0) {
-        this.fullscreenContainer.appendChild(prevButton);
-        console.log("Previous button added"); // DEBUG
-    } else {
-        console.log("Previous button NOT added. Conditions:", {
-            filteredImagesExist: !!filteredImages,
-            lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
-            indexGreaterThan0: index > 0,
-        }); // DEBUG
-    }
 
 
-    // Next Button
-    const nextButton = document.createElement('button');
-    nextButton.textContent = '>';
-    nextButton.style.position = 'absolute';
-    nextButton.style.right = '20px';
-    nextButton.style.top = '50%';
-    nextButton.style.transform = 'translateY(-50%)';
-    nextButton.style.zIndex = '2002';
-    nextButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    nextButton.style.color = 'white';
-    nextButton.style.border = 'none';
-    nextButton.style.padding = '10px 15px';
-    nextButton.style.fontSize = '20px';
-    nextButton.style.cursor = 'pointer';
-    nextButton.onclick = (event) => {
-        event.stopPropagation();
-        if (filteredImages && filteredImages.length > 0) { // More robust check
-            const nextIndex = (index + 1) % filteredImages.length;
-            this.showFullscreenImage(filteredImages[nextIndex].url, nextIndex, filteredImages);
+        // Next Button
+        const nextButton = document.createElement('button');
+        nextButton.textContent = '>';
+        nextButton.style.position = 'absolute';
+        nextButton.style.right = '20px';
+        nextButton.style.top = '50%';
+        nextButton.style.transform = 'translateY(-50%)';
+        nextButton.style.zIndex = '2002';
+        nextButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        nextButton.style.color = 'white';
+        nextButton.style.border = 'none';
+        nextButton.style.padding = '10px 15px';
+        nextButton.style.fontSize = '20px';
+        nextButton.style.cursor = 'pointer';
+        nextButton.onclick = (event) => {
+            event.stopPropagation();
+            if (filteredImages && filteredImages.length > 0) { // More robust check
+                const nextIndex = (index + 1) % filteredImages.length;
+                this.showFullscreenImage(filteredImages[nextIndex].url, nextIndex, filteredImages);
+            } else {
+                console.warn("showFullscreenImage: nextButton: filteredImages is invalid", filteredImages);
+            }
+        };
+
+        // More robust condition for displaying the next button
+        if (filteredImages && filteredImages.length > 1 && index < filteredImages.length - 1) {
+            this.fullscreenContainer.appendChild(nextButton);
+            console.log("Next button added"); // DEBUG
         } else {
-             console.warn("showFullscreenImage: nextButton: filteredImages is invalid", filteredImages);
+            console.log("Next button NOT added. Conditions:", {
+                filteredImagesExist: !!filteredImages,
+                lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
+                indexLessThanLengthMinus1: filteredImages ? index < filteredImages.length - 1 : false,
+            }); // DEBUG
         }
-    };
-
-    // More robust condition for displaying the next button
-    if (filteredImages && filteredImages.length > 1 && index < filteredImages.length - 1) {
-        this.fullscreenContainer.appendChild(nextButton);
-        console.log("Next button added"); // DEBUG
-    } else {
-         console.log("Next button NOT added. Conditions:", {
-            filteredImagesExist: !!filteredImages,
-            lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
-            indexLessThanLengthMinus1: filteredImages ? index < filteredImages.length - 1 : false,
-        }); // DEBUG
-    }
 
 
-    if (
-        !imageUrl.includes(".mp4") &&
-        !imageUrl.includes(".webm")
-    ) {
-        this.fullscreenImage = document.createElement('img');
-        this.fullscreenImage.classList.add('fullscreen-image');
-        this.fullscreenImage.src = imageUrl;
-        this.fullscreenContainer.appendChild(this.fullscreenImage);
-    } else {
-        this.fullscreenImage = document.createElement('video');
-        this.fullscreenImage.classList.add('fullscreen-video');
-        this.fullscreenImage.src = imageUrl;
-        this.fullscreenImage.controls = true;
-        this.fullscreenImage.autoplay = true;
-        this.fullscreenImage.loop = true;
-        this.fullscreenContainer.appendChild(this.fullscreenImage);
-    }
-
-    this.infoWindow.style.display = 'none';
-    this.rawMetadataWindow.style.display = 'none';
-    this.galleryPopup.style.zIndex = '1001';
-}
-
-/**
- * Shows the info window, with next/previous buttons for other images.
- * @param {object} metadata - The metadata of the image.
- * @param {string} imageUrl - The URL of the image.
- * @param {number} index - The index of the image in the filtered list.
- * @param {Array<object>} filteredImages -  The array of currently filtered images.
- */
-showInfoWindow(metadata, imageUrl, index, filteredImages) {
-    console.log("showInfoWindow called:", { metadata, imageUrl, index, filteredImages }); // DEBUGGING
-
-    this.fullscreenContainer.innerHTML = '';
-    this.fullscreenContainer.style.display = 'flex';
-
-    const closeButton = document.createElement('span');
-    closeButton.classList.add('info-close');
-    closeButton.innerHTML = '×';
-    closeButton.onclick = () => this.closeFullscreenView();
-    this.fullscreenContainer.appendChild(closeButton);
-
-    // Previous Button
-    const prevButton = document.createElement('button');
-    prevButton.textContent = '<';
-    prevButton.style.position = 'absolute';
-    prevButton.style.left = '20px';
-    prevButton.style.top = '50%';
-    prevButton.style.transform = 'translateY(-50%)';
-    prevButton.style.zIndex = '2002'; // Ensure it's above the content
-    prevButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    prevButton.style.color = 'white';
-    prevButton.style.border = 'none';
-    prevButton.style.padding = '10px 15px';
-    prevButton.style.fontSize = '20px';
-    prevButton.style.cursor = 'pointer';
-    prevButton.onclick = (event) => {
-        event.stopPropagation();
-        if (filteredImages && filteredImages.length > 0) { // More robust check
-            const prevIndex = (index - 1 + filteredImages.length) % filteredImages.length;
-            this.showInfoWindow(filteredImages[prevIndex].metadata, filteredImages[prevIndex].url, prevIndex, filteredImages);
+        if (
+            !imageUrl.includes(".mp4") &&
+            !imageUrl.includes(".webm")
+        ) {
+            this.fullscreenImage = document.createElement('img');
+            this.fullscreenImage.classList.add('fullscreen-image');
+            this.fullscreenImage.src = imageUrl;
+            this.fullscreenContainer.appendChild(this.fullscreenImage);
         } else {
-            console.warn("showInfoWindow: prevButton: filteredImages is invalid", filteredImages);
+            this.fullscreenImage = document.createElement('video');
+            this.fullscreenImage.classList.add('fullscreen-video');
+            this.fullscreenImage.src = imageUrl;
+            this.fullscreenImage.controls = true;
+            this.fullscreenImage.autoplay = true;
+            this.fullscreenImage.loop = true;
+            this.fullscreenContainer.appendChild(this.fullscreenImage);
         }
-    };
 
-    // More robust condition for displaying the previous button
-    if (filteredImages && filteredImages.length > 1 && index > 0) {
-        this.fullscreenContainer.appendChild(prevButton);
-        console.log("Previous button added"); // DEBUG
-    } else {
-        console.log("Previous button NOT added. Conditions:", {
-            filteredImagesExist: !!filteredImages,
-            lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
-            indexGreaterThan0: index > 0,
-        }); // DEBUG
+        this.infoWindow.style.display = 'none';
+        this.rawMetadataWindow.style.display = 'none';
+        this.galleryPopup.style.zIndex = '1001';
     }
 
-    // Next Button
-    const nextButton = document.createElement('button');
-    nextButton.textContent = '>';
-    nextButton.style.position = 'absolute';
-    nextButton.style.right = '20px';
-    nextButton.style.top = '50%';
-    nextButton.style.transform = 'translateY(-50%)';
-    nextButton.style.zIndex = '2002';
-    nextButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    nextButton.style.color = 'white';
-    nextButton.style.border = 'none';
-    nextButton.style.padding = '10px 15px';
-    nextButton.style.fontSize = '20px';
-    nextButton.style.cursor = 'pointer';
-    nextButton.onclick = (event) => {
-        event.stopPropagation();
-        if (filteredImages && filteredImages.length > 0) { // More robust check
-            const nextIndex = (index + 1) % filteredImages.length;
-            this.showInfoWindow(filteredImages[nextIndex].metadata, filteredImages[nextIndex].url, nextIndex, filteredImages);
+    /**
+     * Shows the info window, with next/previous buttons for other images.
+     * @param {object} metadata - The metadata of the image.
+     * @param {string} imageUrl - The URL of the image.
+     * @param {number} index - The index of the image in the filtered list.
+     * @param {Array<object>} filteredImages -  The array of currently filtered images.
+     */
+    showInfoWindow(metadata, imageUrl, index, filteredImages) {
+        console.log("showInfoWindow called:", { metadata, imageUrl, index, filteredImages }); // DEBUGGING
+
+        this.fullscreenContainer.innerHTML = '';
+        this.fullscreenContainer.style.display = 'flex';
+
+        const closeButton = document.createElement('span');
+        closeButton.classList.add('info-close');
+        closeButton.innerHTML = '×';
+        closeButton.onclick = () => this.closeFullscreenView();
+        this.fullscreenContainer.appendChild(closeButton);
+
+        // Previous Button
+        const prevButton = document.createElement('button');
+        prevButton.textContent = '<';
+        prevButton.style.position = 'absolute';
+        prevButton.style.left = '20px';
+        prevButton.style.top = '50%';
+        prevButton.style.transform = 'translateY(-50%)';
+        prevButton.style.zIndex = '2002'; // Ensure it's above the content
+        prevButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        prevButton.style.color = 'white';
+        prevButton.style.border = 'none';
+        prevButton.style.padding = '10px 15px';
+        prevButton.style.fontSize = '20px';
+        prevButton.style.cursor = 'pointer';
+        prevButton.onclick = (event) => {
+            event.stopPropagation();
+            if (filteredImages && filteredImages.length > 0) { // More robust check
+                const prevIndex = (index - 1 + filteredImages.length) % filteredImages.length;
+                this.showInfoWindow(filteredImages[prevIndex].metadata, filteredImages[prevIndex].url, prevIndex, filteredImages);
+            } else {
+                console.warn("showInfoWindow: prevButton: filteredImages is invalid", filteredImages);
+            }
+        };
+
+        // More robust condition for displaying the previous button
+        if (filteredImages && filteredImages.length > 1 && index > 0) {
+            this.fullscreenContainer.appendChild(prevButton);
+            console.log("Previous button added"); // DEBUG
         } else {
-            console.warn("showInfoWindow: nextButton: filteredImages is invalid", filteredImages);
+            console.log("Previous button NOT added. Conditions:", {
+                filteredImagesExist: !!filteredImages,
+                lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
+                indexGreaterThan0: index > 0,
+            }); // DEBUG
         }
-    };
 
-    // More robust condition for displaying the next button
-    if (filteredImages && filteredImages.length > 1 && index < filteredImages.length - 1) {
-        this.fullscreenContainer.appendChild(nextButton);
-        console.log("Next button added"); // DEBUG
-    } else {
-        console.log("Next button NOT added. Conditions:", {
-            filteredImagesExist: !!filteredImages,
-            lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
-            indexLessThanLengthMinus1: filteredImages ? index < filteredImages.length - 1 : false,
-        }); // DEBUG
+        // Next Button
+        const nextButton = document.createElement('button');
+        nextButton.textContent = '>';
+        nextButton.style.position = 'absolute';
+        nextButton.style.right = '20px';
+        nextButton.style.top = '50%';
+        nextButton.style.transform = 'translateY(-50%)';
+        nextButton.style.zIndex = '2002';
+        nextButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        nextButton.style.color = 'white';
+        nextButton.style.border = 'none';
+        nextButton.style.padding = '10px 15px';
+        nextButton.style.fontSize = '20px';
+        nextButton.style.cursor = 'pointer';
+        nextButton.onclick = (event) => {
+            event.stopPropagation();
+            if (filteredImages && filteredImages.length > 0) { // More robust check
+                const nextIndex = (index + 1) % filteredImages.length;
+                this.showInfoWindow(filteredImages[nextIndex].metadata, filteredImages[nextIndex].url, nextIndex, filteredImages);
+            } else {
+                console.warn("showInfoWindow: nextButton: filteredImages is invalid", filteredImages);
+            }
+        };
+
+        // More robust condition for displaying the next button
+        if (filteredImages && filteredImages.length > 1 && index < filteredImages.length - 1) {
+            this.fullscreenContainer.appendChild(nextButton);
+            console.log("Next button added"); // DEBUG
+        } else {
+            console.log("Next button NOT added. Conditions:", {
+                filteredImagesExist: !!filteredImages,
+                lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
+                indexLessThanLengthMinus1: filteredImages ? index < filteredImages.length - 1 : false,
+            }); // DEBUG
+        }
+
+        const infoContent = document.createElement('div');
+        infoContent.classList.add('info-content');
+        this.fullscreenContainer.appendChild(infoContent);
+
+        this.populateInfoWindowContent(infoContent, metadata, imageUrl);
+
+        this.infoWindow.style.display = 'block';
+        this.rawMetadataWindow.style.display = 'none';
+        this.fullscreenImage = null;
+        this.galleryPopup.style.zIndex = '1001';
     }
-
-    const infoContent = document.createElement('div');
-    infoContent.classList.add('info-content');
-    this.fullscreenContainer.appendChild(infoContent);
-
-    this.populateInfoWindowContent(infoContent, metadata, imageUrl);
-
-    this.infoWindow.style.display = 'block';
-    this.rawMetadataWindow.style.display = 'none';
-    this.fullscreenImage = null;
-    this.galleryPopup.style.zIndex = '1001';
-}
 
 
     /**
-     * Populates the content of the info window with image metadata.
-     * @param {HTMLElement} infoContent - The container for the info window content.
-     * @param {object} metadata - The image metadata object.
-     * @param {string} imageUrl - The URL of the image preview.
-     */
-    populateInfoWindowContent(infoContent, metadata, imageUrl) {
+ * Populates the content of the info window with image metadata.
+ * @param {HTMLElement} infoContent - The container for the info window content.
+ * @param {object} metadata - The image metadata object.
+ * @param {string} imageUrl - The URL of the image preview.
+ * @param {number} index - The index of the image in the filtered list.
+ * @param {Array<object>} filteredImages -  The array of currently filtered images.
+ */
+    populateInfoWindowContent(infoContent, metadata, imageUrl, index, filteredImages) {
         infoContent.innerHTML = '';
 
-        // Image Preview
+        // --- Main Container (Flex Container with Wrap) ---
+        const infoContainer = document.createElement('div');
+        infoContainer.classList.add('info-container');
+
+        // --- Left Side: Image and Overlay ---
+        const imageSide = document.createElement('div');
+        imageSide.classList.add('info-image-side');
+
+        const previewContainer = document.createElement('div');
+        previewContainer.classList.add('info-preview-container');
+
         const previewImage = document.createElement('img');
         previewImage.src = imageUrl;
         previewImage.classList.add('info-preview-image');
-        infoContent.appendChild(previewImage);
+        previewContainer.appendChild(previewImage);
 
+        const buttonOverlay = document.createElement('div');
+        buttonOverlay.classList.add('info-button-overlay');
+
+        // Share and Download buttons (same as before)
+        const shareButton = document.createElement('button');
+        shareButton.classList.add('info-overlay-button', 'share-button');
+        shareButton.textContent = '🔗'; // Placeholder
+        shareButton.onclick = async (event) => {
+            event.stopPropagation();
+            if (navigator.share) {
+                try {
+                    const response = await fetch(imageUrl);
+                    const blob = await response.blob();
+                    const filename = metadata.fileinfo?.filename || 'image.png';
+                    const filesArray = [new File([blob], filename, { type: blob.type })];
+                    await navigator.share({ files: filesArray, title: filename });
+                    console.log('Shared successfully');
+                } catch (error) {
+                    console.error('Sharing failed:', error);
+                    alert('Sharing failed. Check browser support/secure connection.');
+                }
+            } else { alert('Web Share API not supported.'); }
+        };
+        buttonOverlay.appendChild(shareButton);
+
+        const downloadButton = document.createElement('button');
+        downloadButton.classList.add('info-overlay-button', 'download-button');
+        downloadButton.textContent = '⬇'; // Placeholder
+        downloadButton.onclick = (event) => {
+            event.stopPropagation();
+            const link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        buttonOverlay.appendChild(downloadButton);
+
+        previewContainer.appendChild(buttonOverlay);
+        imageSide.appendChild(previewContainer);
+
+        // --- Right Side: Metadata and Buttons ---
+        const infoSide = document.createElement('div');
+        infoSide.classList.add('info-info-side');
+
+        // Button Container (Raw Metadata and Delete) - *BEFORE* Metadata
+        const bottomButtonContainer = document.createElement('div');
+        bottomButtonContainer.classList.add('info-bottom-buttons');
+
+        const rawMetadataButton = document.createElement('button');
+        rawMetadataButton.textContent = 'Show Raw Metadata';
+        rawMetadataButton.classList.add('raw-metadata-button');
+        rawMetadataButton.onclick = (event) => {
+            event.stopPropagation();
+            this.showRawMetadataWindow(metadata);
+        };
+        bottomButtonContainer.appendChild(rawMetadataButton);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.classList.add('delete-button');
+        deleteButton.onclick = (event) => {
+            event.stopPropagation();
+            this.confirmAndDelete(imageUrl);
+        };
+        bottomButtonContainer.appendChild(deleteButton);
+
+        infoSide.appendChild(bottomButtonContainer); // Add buttons *before* metadata
+
+        // Metadata Table (same as before)
+        const metadataContainer = document.createElement('div');
+        metadataContainer.classList.add('metadata-container');
         const metadataTable = document.createElement('div');
         metadataTable.classList.add('metadata-table');
-        infoContent.appendChild(metadataTable);
+        metadataContainer.appendChild(metadataTable);
 
         const addMetadataRow = (label, value) => {
             const row = document.createElement('div');
             row.classList.add('metadata-row');
+
             const labelSpan = document.createElement('span');
             labelSpan.classList.add('metadata-label');
             labelSpan.textContent = label + ":";
             row.appendChild(labelSpan);
+
             const valueSpan = document.createElement('span');
             valueSpan.classList.add('metadata-value');
             valueSpan.textContent = value || 'N/A';
+            valueSpan.style.cursor = 'pointer'; // Add cursor pointer
+            valueSpan.title = 'Click to copy';   // Add title for tooltip
+            valueSpan.onclick = (event) => {
+                event.stopPropagation();
+                navigator.clipboard.writeText(value).then(() => {
+                    console.log(`${label} copied to clipboard`);
+
+                    let tooltip = valueSpan.querySelector('.tooltip');
+                    if (!tooltip) {
+                        tooltip = document.createElement('span');
+                        tooltip.classList.add('tooltip');
+                        tooltip.textContent = 'Copied!';
+                        valueSpan.appendChild(tooltip);
+                        valueSpan.style.position = 'relative'; // Ensure relative positioning
+                    }
+
+                    // Get mouse position
+                    const x = event.clientX;
+                    const y = event.clientY;
+
+                    // Position the tooltip (initial positioning)
+                    tooltip.style.left = `${x}px`;
+                    tooltip.style.top = `${y}px`;
+
+
+                    // Show the tooltip
+                    tooltip.classList.add('tooltip-show');
+
+                    // Hide tooltip after delay
+                    setTimeout(() => {
+                        tooltip.classList.remove('tooltip-show');
+                        tooltip.classList.add('tooltip-hide');
+                        setTimeout(() => {
+                            if (tooltip.parentNode) {
+                                tooltip.parentNode.removeChild(tooltip);
+                            }
+                        }, 200);
+                    }, 1000);
+
+                }).catch(err => {
+                    console.error('Could not copy text: ', err);
+                });
+            };
             row.appendChild(valueSpan);
             metadataTable.appendChild(row);
         };
@@ -1005,8 +1147,8 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
         if (metadata?.workflow?.nodes && Array.isArray(metadata.workflow.nodes)) {
             workflowToParse = metadata.workflow.nodes;
         } else if (metadata?.workflow && typeof metadata.workflow === 'object') {
-             workflowToParse = metadata.workflow;
-        }else if (metadata?.prompt && typeof metadata.prompt === 'object') {
+            workflowToParse = metadata.workflow;
+        } else if (metadata?.prompt && typeof metadata.prompt === 'object') {
             workflowToParse = metadata.prompt
         } else {
             console.warn("No workflow or prompt data found in metadata.", metadata);
@@ -1015,7 +1157,7 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
         const parsedMetadata = workflowToParse ? this.parseWorkflow(workflowToParse) : {};
 
 
-        addMetadataRow("Model", parsedMetadata.Model  || metadata.prompt?.['1']?.inputs?.ckpt_name || metadata.prompt?.['1']?.inputs?.ckpt_name?.content);
+        addMetadataRow("Model", parsedMetadata.Model || metadata.prompt?.['1']?.inputs?.ckpt_name || metadata.prompt?.['1']?.inputs?.ckpt_name?.content);
         addMetadataRow("Positive Prompt", parsedMetadata["Positive Prompt"] || metadata.prompt?.['2']?.inputs?.prompt || metadata.prompt?.['7']?.inputs?.text);
         addMetadataRow("Negative Prompt", parsedMetadata["Negative Prompt"] || metadata.prompt?.['3']?.inputs?.prompt || metadata.prompt?.['8']?.inputs?.text);
         addMetadataRow("Sampler", parsedMetadata.Sampler || metadata.prompt?.['10']?.inputs?.sampler_name);
@@ -1027,18 +1169,18 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
 
         let loras = [];
         if (parsedMetadata.LoRAs) {
-                if (Array.isArray(parsedMetadata.LoRAs)) {
-                    parsedMetadata.LoRAs.forEach(lora => {
-                        if (typeof lora === 'object' && lora.name) {
-                            loras.push(`${lora.name} (Model: ${lora.model_strength}, Clip: ${lora.clip_strength})`);
-                        } else if (typeof lora === 'string') {
-                          loras.push(lora)
-                        }
-                    });
-                } else if (typeof parsedMetadata.LoRAs === 'object' && parsedMetadata.LoRAs.name) {
-                    loras.push(`${parsedMetadata.LoRAs.name} (Model: ${parsedMetadata.LoRAs.model_strength}, Clip: ${parsedMetadata.LoRAs.clip_strength})`);
-                }
-         } else {
+            if (Array.isArray(parsedMetadata.LoRAs)) {
+                parsedMetadata.LoRAs.forEach(lora => {
+                    if (typeof lora === 'object' && lora.name) {
+                        loras.push(`${lora.name} (Model: ${lora.model_strength}, Clip: ${lora.clip_strength})`);
+                    } else if (typeof lora === 'string') {
+                        loras.push(lora)
+                    }
+                });
+            } else if (typeof parsedMetadata.LoRAs === 'object' && parsedMetadata.LoRAs.name) {
+                loras.push(`${parsedMetadata.LoRAs.name} (Model: ${parsedMetadata.LoRAs.model_strength}, Clip: ${parsedMetadata.LoRAs.clip_strength})`);
+            }
+        } else {
             for (const key in metadata.prompt) {
                 if (metadata.prompt[key].class_type === 'LoraLoader') {
                     loras.push(metadata.prompt[key].inputs.lora_name);
@@ -1052,15 +1194,13 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
             }
         }
         addMetadataRow("LoRAs", loras.length > 0 ? loras.join(', ') : 'N/A');
+        infoSide.appendChild(metadataContainer); // Add metadata *after* buttons
 
-        const rawMetadataButton = document.createElement('button');
-        rawMetadataButton.textContent = 'Show Raw Metadata';
-        rawMetadataButton.classList.add('raw-metadata-button');
-        rawMetadataButton.onclick = (event) => {
-            event.stopPropagation();
-            this.showRawMetadataWindow(metadata);
-        };
-        infoContent.appendChild(rawMetadataButton);
+
+        // --- Assemble Everything ---
+        infoContainer.appendChild(imageSide);
+        infoContainer.appendChild(infoSide);
+        infoContent.appendChild(infoContainer);
     }
 
 
@@ -1175,7 +1315,7 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
         } else if (sortType === 'name_asc') {
             sortedImages.sort((a, b) => a.name.localeCompare(b.name));
         } else if (sortType === 'name_desc') {
-            sortedImages.sort((a, b) => b.name.localeCompare(b.name));
+            sortedImages.sort((a, b) => b.name.localeCompare(a.name));
         }
         return sortedImages;
     }
@@ -1249,8 +1389,8 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
         for (const folderName in changes.folders) {
             const folderChanges = changes.folders[folderName];
             if (!this.folders[folderName] && folderChanges) {
-                 this.folders[folderName] = {}; // Initialize folder if it doesn't exist yet
-                 this.populateFolderNavigation(this.galleryPopup.querySelector('.folder-navigation')); // Re-populate navigation to show new folder
+                this.folders[folderName] = {}; // Initialize folder if it doesn't exist yet
+                this.populateFolderNavigation(this.galleryPopup.querySelector('.folder-navigation')); // Re-populate navigation to show new folder
             }
             if (this.folders[folderName]) { // Proceed only if folder exists (or was just created)
                 for (const filename in folderChanges) {
@@ -1269,9 +1409,9 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
                             console.warn(`Unknown action: ${fileChange.action}`);
                     }
                 }
-             } else {
+            } else {
                 console.warn(`Change for non-existent folder: ${folderName}`);
-             }
+            }
         }
 
 
@@ -1310,7 +1450,7 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
             // Merge updated data, keep existing object to maintain references if needed in UI
             Object.assign(this.folders[folderName][filename], updatedFileData);
             console.log(`File updated: ${folderName}/${filename}`);
-             // UI update for current folder is handled in updateImages -> loadFolderImages
+            // UI update for current folder is handled in updateImages -> loadFolderImages
         } else {
             console.warn(`Update failed: ${folderName}/${filename} not found.`);
         }
@@ -1327,7 +1467,7 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
             console.log(`File removed: ${folderName}/${filename}`);
             if (Object.keys(this.folders[folderName]).length === 0) {
                 delete this.folders[folderName]; // Remove folder if it becomes empty
-                 this.populateFolderNavigation(this.galleryPopup.querySelector('.folder-navigation')); // Update folder nav if folder removed
+                this.populateFolderNavigation(this.galleryPopup.querySelector('.folder-navigation')); // Update folder nav if folder removed
             }
             // UI update for current folder is handled in updateImages -> loadFolderImages
         } else {
@@ -1344,295 +1484,531 @@ showInfoWindow(metadata, imageUrl, index, filteredImages) {
         document.head.appendChild(style);
     }
 
-     /**
- * Parses a workflow object to extract relevant metadata.
- * @param {object} workflow - The workflow object or array of nodes.
- * @returns {object} Extracted metadata.
- */
-parseWorkflow(workflow) {
-    // Handle cases where workflow might be an object, not just an array of nodes
-    if (!Array.isArray(workflow) && typeof workflow === 'object') {
+    /**
+* Parses a workflow object to extract relevant metadata.
+* @param {object} workflow - The workflow object or array of nodes.
+* @returns {object} Extracted metadata.
+*/
+    parseWorkflow(workflow) {
+        // Handle cases where workflow might be an object, not just an array of nodes
+        if (!Array.isArray(workflow) && typeof workflow === 'object') {
+            const extractedData = {};
+            for (const key in workflow) {
+                if (workflow[key]?.inputs?.ckpt_name) {
+                    extractedData.Model = workflow[key].inputs.ckpt_name;
+                } else if (workflow[key]?.inputs?.text && (key === '2' || key === '7')) {
+                    extractedData["Positive Prompt"] = workflow[key].inputs.text
+                } else if (workflow[key]?.inputs?.text && (key === '3' || key === '8')) {
+                    extractedData["Negative Prompt"] = workflow[key].inputs.text
+                } else if (workflow[key]?.inputs?.sampler_name) {
+                    extractedData["Sampler"] = workflow[key].inputs.sampler_name
+                } else if (workflow[key]?.inputs?.scheduler) {
+                    extractedData["Scheduler"] = workflow[key].inputs.scheduler
+                } else if (workflow[key]?.inputs?.steps) {
+                    extractedData["Steps"] = workflow[key].inputs.steps
+                } else if (workflow[key]?.inputs?.cfg) {
+                    extractedData["CFG Scale"] = workflow[key].inputs.cfg
+                } else if (workflow[key]?.inputs?.seed) {
+                    extractedData["Seed"] = workflow[key].inputs.seed
+                }
+            }
+
+            return extractedData;
+        }
+
+        const parsingConfig = {
+            Model: {
+                type: ["CheckpointLoaderSimple", "CheckpointLoader|pysssss"],
+                extract: (node) => node.widgets_values?.[0]?.content || node.widgets_values?.[0] || null,
+            },
+            "Positive Prompt": {
+                type: ["CR Prompt Text", "CLIPTextEncode", "ImpactWildcardProcessor", "Textbox", "easy showAnything"],
+                extract: (node) => {
+                    if (node.title === "Positive Prompt") {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "CLIPTextEncode" && node.inputs?.find(input => input.name === "text")) {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "ImpactWildcardProcessor") {
+                        return node.widgets_values?.[1] || null;
+                    } else if (node.type === "Textbox") {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "easy showAnything") {
+                        return node.widgets_values?.[0]?.[0] || null;
+                    }
+                    return null;
+                },
+                getColor: (node) => node.color,
+                getBgColor: (node) => node.bgcolor,
+                getText: (node) => node.widgets_values?.[0]?.[0],
+            },
+            "Negative Prompt": {
+                type: ["CR Prompt Text", "CLIPTextEncode", "Textbox", "easy showAnything"],
+                extract: (node) => {
+                    if (node.title === "Negative Prompt") {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "CLIPTextEncode" && node.inputs?.find(input => input.name === "text")) {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "Textbox") {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "easy showAnything") {
+                        return node.widgets_values?.[0]?.[0] || null;
+                    }
+                    return null;
+                },
+                getColor: (node) => node.color,
+                getBgColor: (node) => node.bgcolor,
+                getText: (node) => node.widgets_values?.[0]?.[0],
+            },
+            Sampler: {
+                type: ["KSampler", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale"],
+                extract: (node) => {
+                    if (node.type === "KSampler") {
+                        return node.widgets_values?.[4] || null;
+                    } else if (node.type === "SamplerCustom") {
+                        return node.inputs?.find(input => input.name === "sampler")?.widget?.name || null;
+                    } else if (node.type === "FaceDetailerPipe") {
+                        return node.widgets_values?.[7] || null;
+                    } else if (node.type === "Ultimate SD Upscale") {
+                        return node.widgets_values?.[5] || null;
+                    }
+                    return null;
+                },
+            },
+            Scheduler: {
+                type: ["KSampler", "KarrasScheduler", "FaceDetailerPipe", "Ultimate SD Upscale"],
+                extract: (node) => {
+                    if (node.type === "KSampler") {
+                        return node.widgets_values?.[5] || null;
+                    } else if (node.type === "KarrasScheduler") {
+                        return "karras";
+                    } else if (node.type === "FaceDetailerPipe") {
+                        return node.widgets_values?.[8] || null;
+                    } else if (node.type === "Ultimate SD Upscale") {
+                        return node.widgets_values?.[6] || null;
+                    }
+                    return null;
+                },
+            },
+            Steps: {
+                type: ["KSampler", "KarrasScheduler", "FaceDetailerPipe", "Ultimate SD Upscale"],
+                extract: (node) => {
+                    if (node.type === "KSampler") {
+                        return node.widgets_values?.[2] || null;
+                    } else if (node.type === "KarrasScheduler") {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "FaceDetailerPipe") {
+                        return node.widgets_values?.[5] || null;
+                    } else if (node.type === "Ultimate SD Upscale") {
+                        return node.widgets_values?.[2] || null;
+                    }
+                    return null;
+                },
+            },
+            "CFG Scale": {
+                type: ["KSampler", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale"],
+                extract: (node) => {
+                    if (node.type === "KSampler") {
+                        return node.widgets_values?.[3] || null;
+                    } else if (node.type === "SamplerCustom") {
+                        return node.inputs?.find(input => input.name === "cfg")?.value || null;
+                    } else if (node.type === "FaceDetailerPipe") {
+                        return node.widgets_values?.[6] || null;
+                    } else if (node.type === "Ultimate SD Upscale") {
+                        return node.widgets_values?.[4] || null;
+                    }
+                    return null;
+                },
+            },
+            Seed: {
+                type: ["KSampler", "Seed Generator", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale", "ImpactWildcardProcessor"],
+                extract: (node) => {
+                    if (node.type === "KSampler") {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "Seed Generator") {
+                        return node.widgets_values?.[0] || null;
+                    } else if (node.type === "SamplerCustom") {
+                        return node.inputs?.find(input => input.name === "noise_seed")?.widget?.value || null;
+                    } else if (node.type === "FaceDetailerPipe") {
+                        return node.widgets_values?.[3] || null;
+                    } else if (node.type === "Ultimate SD Upscale") {
+                        return node.widgets_values?.[1] || null;
+                    } else if (node.type === "ImpactWildcardProcessor") {
+                        return node.widgets_values?.[3] || null;
+                    }
+                    return null;
+                },
+            },
+            LoRAs: {
+                type: ["LoraLoader", "Power Lora Loader (rgthree)"],
+                extract: (node) => {
+                    const loras = [];
+                    if (node.type === "LoraLoader") {
+                        if (node.widgets_values && node.widgets_values.length >= 3) {
+                            loras.push({
+                                name: node.widgets_values[0],
+                                model_strength: node.widgets_values[1],
+                                clip_strength: node.widgets_values[2],
+                            });
+                        } else {
+                            console.warn("LoraLoader node has unexpected widgets_values structure:", node);
+                        }
+                    } else if (node.type === "Power Lora Loader (rgthree)") {
+                        if (node.widgets_values) {
+                            for (let i = 1; i <= 9; i++) {
+                                if (node.widgets_values[i] && node.widgets_values[i].on) {
+                                    loras.push({
+                                        name: node.widgets_values[i].lora,
+                                        strength: node.widgets_values[i].strength,
+                                    });
+                                }
+                            }
+                        } else {
+                            console.warn("Power Lora Loader (rgthree) has unexpected widgets_values:", node);
+                        }
+                    }
+                    return loras.length > 0 ? loras : null;
+                },
+            },
+        };
+
         const extractedData = {};
-        for (const key in workflow) {
-            if (workflow[key]?.inputs?.ckpt_name) {
-                extractedData.Model = workflow[key].inputs.ckpt_name;
-            } else if (workflow[key]?.inputs?.text && (key === '2' || key === '7')) {
-                extractedData["Positive Prompt"] = workflow[key].inputs.text
-            } else if (workflow[key]?.inputs?.text && (key === '3' || key === '8')) {
-                extractedData["Negative Prompt"] = workflow[key].inputs.text
-            } else if (workflow[key]?.inputs?.sampler_name) {
-                extractedData["Sampler"] = workflow[key].inputs.sampler_name
-            } else if (workflow[key]?.inputs?.scheduler) {
-                extractedData["Scheduler"] = workflow[key].inputs.scheduler
-            } else if (workflow[key]?.inputs?.steps) {
-                extractedData["Steps"] = workflow[key].inputs.steps
-            } else if (workflow[key]?.inputs?.cfg) {
-                extractedData["CFG Scale"] = workflow[key].inputs.cfg
-            } else if (workflow[key]?.inputs?.seed) {
-                extractedData["Seed"] = workflow[key].inputs.seed
+
+        // First Pass: Explicit Titles (including LoRAs)
+        if (Array.isArray(workflow)) {
+            for (const key in parsingConfig) {
+                extractedData[key] = []; // Initialize the array for each key
+                const config = parsingConfig[key];
+                const seenValues = new Set(); // Keep track of seen values *per key*
+
+                for (const node of workflow) {
+                    if (config.type.includes(node.type)) {
+                        // IMPORTANT: Only check for explicit titles *if* the key is NOT a prompt key
+                        if (key !== "Positive Prompt" && key !== "Negative Prompt") {
+                            const extractedValue = config.extract(node);
+                            if (extractedValue !== null && extractedValue !== undefined) {
+                                if (key === "LoRAs" && Array.isArray(extractedValue)) {
+                                    extractedValue.forEach(lora => {
+                                        if (!seenValues.has(lora.name)) {
+                                            extractedData[key].push(lora);
+                                            seenValues.add(lora.name);
+                                        }
+                                    });
+                                } else if (!seenValues.has(extractedValue)) {
+                                    extractedData[key].push(extractedValue);
+                                    seenValues.add(extractedValue);
+                                }
+                            }
+                        } else if (node.title === key) { // Handle explicit prompt titles
+                            const extractedValue = config.extract(node);
+                            if (extractedValue !== null && extractedValue !== undefined) {
+                                if (!seenValues.has(extractedValue)) {
+                                    extractedData[key].push(extractedValue);
+                                    seenValues.add(extractedValue);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Handle empty/single element arrays
+                if (extractedData[key].length === 0) {
+                    extractedData[key] = null;
+                } else if (extractedData[key].length === 1 && key !== "LoRAs") {
+                    extractedData[key] = extractedData[key][0];
+                }
+            }
+        }
+        // Second Pass: Inference for easy showAnything and CLIPTextEncode (if prompts not found)
+        const promptInference = {
+            "Positive Prompt": {
+                colorPrefixes: ["#232", "#2"],
+                bgColorPrefixes: ["#353", "#3"],
+                keywords: ["positive", "prompt", "masterpiece", "best quality", "detailed"],
+            },
+            "Negative Prompt": {
+                colorPrefixes: ["#322", "#533", "#3", "#5"],
+                bgColorPrefixes: ["#533", "#653", "#5", "#6"],
+                keywords: ["negative", "prompt", "unrealistic", "bad", "worst quality", "low quality", "unwanted"],
+            },
+        };
+
+        if (Array.isArray(workflow)) {
+            for (const promptType in promptInference) {
+                if (extractedData[promptType] === null) {
+                    extractedData[promptType] = []; // Initialize for inference
+                    const seenValues = new Set();    // Track seen values during inference
+
+                    for (const node of workflow) {
+                        const config = parsingConfig[promptType];
+                        // Only consider nodes suitable for inference
+                        if (config.type.includes(node.type) && !["CR Prompt Text"].includes(node.type)) {
+                            let extractedValue = null;
+                            const color = config.getColor(node);
+                            const bgColor = config.getBgColor(node);
+                            const text = config.getText(node)?.toLowerCase() || "";
+
+                            const colorMatch = promptInference[promptType].colorPrefixes.some(prefix => color?.startsWith(prefix));
+                            const bgColorMatch = promptInference[promptType].bgColorPrefixes.some(prefix => bgColor?.startsWith(prefix));
+                            const keywordMatch = promptInference[promptType].keywords.some(keyword => text.includes(keyword));
+
+                            if (colorMatch || bgColorMatch || keywordMatch) {
+                                extractedValue = config.extract(node);
+                            }
+
+                            if (extractedValue !== null && extractedValue !== undefined) {
+                                if (!seenValues.has(extractedValue)) {
+                                    extractedData[promptType].push(extractedValue);
+                                    seenValues.add(extractedValue);
+                                }
+                            }
+                        }
+                    }
+
+                    if (extractedData[promptType].length === 0) {
+                        extractedData[promptType] = null;
+                    } else if (extractedData[promptType].length === 1) {
+                        extractedData[promptType] = extractedData[promptType][0];
+                    }
+                }
             }
         }
 
         return extractedData;
     }
 
-    const parsingConfig = {
-        Model: {
-            type: ["CheckpointLoaderSimple", "CheckpointLoader|pysssss"],
-            extract: (node) => node.widgets_values?.[0]?.content || node.widgets_values?.[0] || null,
-        },
-        "Positive Prompt": {
-            type: ["CR Prompt Text", "CLIPTextEncode", "ImpactWildcardProcessor", "Textbox", "easy showAnything"],
-            extract: (node) => {
-                if (node.title === "Positive Prompt") {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "CLIPTextEncode" && node.inputs?.find(input => input.name === "text")) {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "ImpactWildcardProcessor") {
-                    return node.widgets_values?.[1] || null;
-                } else if (node.type === "Textbox") {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "easy showAnything") {
-                    return node.widgets_values?.[0]?.[0] || null;
-                }
-                return null;
-            },
-            getColor: (node) => node.color,
-            getBgColor: (node) => node.bgcolor,
-            getText: (node) => node.widgets_values?.[0]?.[0],
-        },
-        "Negative Prompt": {
-            type: ["CR Prompt Text", "CLIPTextEncode", "Textbox", "easy showAnything"],
-            extract: (node) => {
-                if (node.title === "Negative Prompt") {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "CLIPTextEncode" && node.inputs?.find(input => input.name === "text")) {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "Textbox") {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "easy showAnything") {
-                    return node.widgets_values?.[0]?.[0] || null;
-                }
-                return null;
-            },
-            getColor: (node) => node.color,
-            getBgColor: (node) => node.bgcolor,
-            getText: (node) => node.widgets_values?.[0]?.[0],
-        },
-        Sampler: {
-            type: ["KSampler", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale"],
-            extract: (node) => {
-                if (node.type === "KSampler") {
-                    return node.widgets_values?.[4] || null;
-                } else if (node.type === "SamplerCustom") {
-                    return node.inputs?.find(input => input.name === "sampler")?.widget?.name || null;
-                } else if (node.type === "FaceDetailerPipe") {
-                    return node.widgets_values?.[7] || null;
-                } else if (node.type === "Ultimate SD Upscale") {
-                    return node.widgets_values?.[5] || null;
-                }
-                return null;
-            },
-        },
-        Scheduler: {
-            type: ["KSampler", "KarrasScheduler", "FaceDetailerPipe", "Ultimate SD Upscale"],
-            extract: (node) => {
-                if (node.type === "KSampler") {
-                    return node.widgets_values?.[5] || null;
-                } else if (node.type === "KarrasScheduler") {
-                    return "karras";
-                } else if (node.type === "FaceDetailerPipe") {
-                    return node.widgets_values?.[8] || null;
-                } else if (node.type === "Ultimate SD Upscale") {
-                    return node.widgets_values?.[6] || null;
-                }
-                return null;
-            },
-        },
-        Steps: {
-            type: ["KSampler", "KarrasScheduler", "FaceDetailerPipe", "Ultimate SD Upscale"],
-            extract: (node) => {
-                if (node.type === "KSampler") {
-                    return node.widgets_values?.[2] || null;
-                } else if (node.type === "KarrasScheduler") {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "FaceDetailerPipe") {
-                    return node.widgets_values?.[5] || null;
-                } else if (node.type === "Ultimate SD Upscale") {
-                    return node.widgets_values?.[2] || null;
-                }
-                return null;
-            },
-        },
-        "CFG Scale": {
-            type: ["KSampler", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale"],
-            extract: (node) => {
-                if (node.type === "KSampler") {
-                    return node.widgets_values?.[3] || null;
-                } else if (node.type === "SamplerCustom") {
-                    return node.inputs?.find(input => input.name === "cfg")?.value || null;
-                } else if (node.type === "FaceDetailerPipe") {
-                    return node.widgets_values?.[6] || null;
-                } else if (node.type === "Ultimate SD Upscale") {
-                    return node.widgets_values?.[4] || null;
-                }
-                return null;
-            },
-        },
-        Seed: {
-            type: ["KSampler", "Seed Generator", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale", "ImpactWildcardProcessor"],
-            extract: (node) => {
-                if (node.type === "KSampler") {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "Seed Generator") {
-                    return node.widgets_values?.[0] || null;
-                } else if (node.type === "SamplerCustom") {
-                    return node.inputs?.find(input => input.name === "noise_seed")?.widget?.value || null;
-                } else if (node.type === "FaceDetailerPipe") {
-                    return node.widgets_values?.[3] || null;
-                } else if (node.type === "Ultimate SD Upscale") {
-                    return node.widgets_values?.[1] || null;
-                } else if (node.type === "ImpactWildcardProcessor") {
-                    return node.widgets_values?.[3] || null;
-                }
-                return null;
-            },
-        },
-        LoRAs: {
-            type: ["LoraLoader", "Power Lora Loader (rgthree)"],
-            extract: (node) => {
-                const loras = [];
-                if (node.type === "LoraLoader") {
-                    if (node.widgets_values && node.widgets_values.length >= 3) {
-                        loras.push({
-                            name: node.widgets_values[0],
-                            model_strength: node.widgets_values[1],
-                            clip_strength: node.widgets_values[2],
-                        });
-                    } else {
-                        console.warn("LoraLoader node has unexpected widgets_values structure:", node);
-                    }
-                } else if (node.type === "Power Lora Loader (rgthree)") {
-                    if (node.widgets_values) {
-                        for (let i = 1; i <= 9; i++) {
-                            if (node.widgets_values[i] && node.widgets_values[i].on) {
-                                loras.push({
-                                    name: node.widgets_values[i].lora,
-                                    strength: node.widgets_values[i].strength,
-                                });
-                            }
-                        }
-                    } else {
-                        console.warn("Power Lora Loader (rgthree) has unexpected widgets_values:", node);
-                    }
-                }
-                return loras.length > 0 ? loras : null;
-            },
-        },
-    };
-
-    const extractedData = {};
-
-    // First Pass: Explicit Titles (including LoRAs)
-    if (Array.isArray(workflow)) {
-        for (const key in parsingConfig) {
-            extractedData[key] = []; // Initialize the array for each key
-            const config = parsingConfig[key];
-            const seenValues = new Set(); // Keep track of seen values *per key*
-
-            for (const node of workflow) {
-                if (config.type.includes(node.type)) {
-                    // IMPORTANT: Only check for explicit titles *if* the key is NOT a prompt key
-                    if (key !== "Positive Prompt" && key !== "Negative Prompt") {
-                        const extractedValue = config.extract(node);
-                        if (extractedValue !== null && extractedValue !== undefined) {
-                            if (key === "LoRAs" && Array.isArray(extractedValue)) {
-                                extractedValue.forEach(lora => {
-                                    if (!seenValues.has(lora.name)) {
-                                        extractedData[key].push(lora);
-                                        seenValues.add(lora.name);
-                                    }
-                                });
-                            } else if (!seenValues.has(extractedValue)) {
-                                extractedData[key].push(extractedValue);
-                                seenValues.add(extractedValue);
-                            }
-                        }
-                    } else if (node.title === key) { // Handle explicit prompt titles
-                        const extractedValue = config.extract(node);
-                         if (extractedValue !== null && extractedValue !== undefined) {
-                            if (!seenValues.has(extractedValue)) {
-                                extractedData[key].push(extractedValue);
-                                 seenValues.add(extractedValue);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Handle empty/single element arrays
-            if (extractedData[key].length === 0) {
-                extractedData[key] = null;
-            } else if (extractedData[key].length === 1 && key !== "LoRAs") {
-                extractedData[key] = extractedData[key][0];
-            }
-        }
+    //---------- Drag and Drop Functionality ----------
+    /**
+     * Sets up drag-and-drop event listeners for image cards.
+     * @param {HTMLElement} card - The image card element.
+     */
+    setupCardDragEvents(card) {
+        card.addEventListener('dragstart', this.handleDragStart.bind(this));
+        card.addEventListener('dragover', this.handleDragOver.bind(this));  // Add dragover to card
+        card.addEventListener('drop', this.handleDrop.bind(this)); // Add drop to card
     }
-    // Second Pass: Inference for easy showAnything and CLIPTextEncode (if prompts not found)
-    const promptInference = {
-        "Positive Prompt": {
-            colorPrefixes: ["#232", "#2"],
-            bgColorPrefixes: ["#353", "#3"],
-            keywords: ["positive", "prompt", "masterpiece", "best quality", "detailed"],
-        },
-        "Negative Prompt": {
-            colorPrefixes: ["#322", "#533", "#3", "#5"],
-            bgColorPrefixes: ["#533", "#653", "#5", "#6"],
-            keywords: ["negative", "prompt", "unrealistic", "bad", "worst quality", "low quality", "unwanted"],
-        },
-    };
 
-    if (Array.isArray(workflow)) {
-        for (const promptType in promptInference) {
-            if (extractedData[promptType] === null) {
-                extractedData[promptType] = []; // Initialize for inference
-                const seenValues = new Set();    // Track seen values during inference
+    /**
+     * Sets up drag-and-drop event listeners for folder buttons.
+     */
+    setupFolderDragAndDrop() {
+        const folders = this.galleryPopup.querySelectorAll('.folder-button');
+        folders.forEach(folder => {
+            folder.addEventListener('dragover', this.handleDragOver.bind(this));
+            folder.addEventListener('drop', this.handleDrop.bind(this));
+        });
+    }
 
-                for (const node of workflow) {
-                    const config = parsingConfig[promptType];
-                    // Only consider nodes suitable for inference
-                    if (config.type.includes(node.type) && !["CR Prompt Text"].includes(node.type)) {
-                        let extractedValue = null;
-                        const color = config.getColor(node);
-                        const bgColor = config.getBgColor(node);
-                        const text = config.getText(node)?.toLowerCase() || "";
+    /**
+     * Handles the dragstart event.
+     * @param {DragEvent} event - The drag event.
+     */
+    handleDragStart(event) {
+        const imageUrl = event.target.getAttribute('data-image-url');
+        const imageName = event.target.getAttribute('data-image-name');
+        const imageFolder = event.target.getAttribute('data-image-folder');
+        event.dataTransfer.setData('text/plain', JSON.stringify({ imageUrl, imageName, imageFolder }));
+        event.target.classList.add('dragging');
+    }
 
-                        const colorMatch = promptInference[promptType].colorPrefixes.some(prefix => color?.startsWith(prefix));
-                        const bgColorMatch = promptInference[promptType].bgColorPrefixes.some(prefix => bgColor?.startsWith(prefix));
-                        const keywordMatch = promptInference[promptType].keywords.some(keyword => text.includes(keyword));
-
-                        if (colorMatch || bgColorMatch || keywordMatch) {
-                            extractedValue = config.extract(node);
-                        }
-
-                        if (extractedValue !== null && extractedValue !== undefined) {
-                            if (!seenValues.has(extractedValue)) {
-                                extractedData[promptType].push(extractedValue);
-                                seenValues.add(extractedValue);
-                            }
-                        }
-                    }
-                }
-
-                if (extractedData[promptType].length === 0) {
-                    extractedData[promptType] = null;
-                } else if (extractedData[promptType].length === 1) {
-                    extractedData[promptType] = extractedData[promptType][0];
-                }
-            }
+    /**
+     * Handles the dragover event.
+     * @param {DragEvent} event - The drag event.
+     */
+    handleDragOver(event) {
+        event.preventDefault(); // Necessary to allow drop
+        event.stopPropagation(); // ADD THIS LINE - Prevent ComfyUI workflow import
+        if (event.target.classList.contains('folder-button')) {
+            event.target.classList.add('drag-over'); // Add class for visual feedback
         }
     }
 
-    return extractedData;
-}
+    async handleDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // 1. ONLY proceed if dropped on a folder button:
+        if (!event.target.classList.contains('folder-button')) {
+            return; // Exit early if not a folder button
+        }
+
+        const targetFolder = event.target.getAttribute('data-folder-name');
+        event.target.classList.remove('drag-over');
+
+        const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+        const sourceImageUrl = data.imageUrl;
+        const sourceImageName = data.imageName;
+        const sourceImageFolder = data.imageFolder;
+
+
+        // 2. Prevent moving to the same folder
+        if (sourceImageFolder === targetFolder) {
+            const draggedElement = this.galleryPopup.querySelector('.dragging');
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+            }
+            return;
+        }
+        // 3. construct *relative* paths for the API call.  Much simpler!
+        const sourcePath = sourceImageFolder ? `${sourceImageFolder}/${sourceImageName}` : sourceImageName;
+        const targetPath = targetFolder ? `${targetFolder}/${sourceImageName}` : sourceImageName;
+
+
+        try {
+            const response = await fetch("/Gallery/move", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ source_path: sourcePath, target_path: targetPath }) // Corrected body
+            });
+
+            if (response.ok) {
+                console.log(`Image moved from ${sourcePath} to ${targetPath}`);
+                // Update local data and UI after successful move
+                this.moveFile(sourceImageFolder, sourceImageName, targetFolder);
+            } else {
+                console.error("Failed to move image:", await response.text());
+            }
+        } catch (error) {
+            console.error("Error moving image:", error);
+        }
+        const draggedElement = this.galleryPopup.querySelector('.dragging');
+        if (draggedElement) {
+            draggedElement.classList.remove('dragging');
+        }
+    }
+
+    /**
+     * Moves a file in the local data structure and updates the UI.
+     * @param {string} sourceFolder - The original folder of the file.
+     * @param {string} filename - The name of the file.
+     * @param {string} targetFolder - The destination folder.
+     */
+    moveFile(sourceFolder, filename, targetFolder) {
+        if (!this.folders[sourceFolder] || !this.folders[sourceFolder][filename]) {
+            console.warn(`Move failed: ${sourceFolder}/${filename} not found.`);
+            return;
+        }
+
+        const fileData = this.folders[sourceFolder][filename];
+        // Update url
+        if (targetFolder != "output") {
+            fileData.url = `/static_gallery/${targetFolder}/${filename}`;
+        }
+        else {
+            fileData.url = `/static_gallery/${filename}`;
+        }
+
+
+        // Remove from source folder
+        delete this.folders[sourceFolder][filename];
+
+        // Add to target folder, creating it if necessary
+        if (!this.folders[targetFolder]) {
+            this.folders[targetFolder] = {};
+        }
+        this.folders[targetFolder][filename] = fileData;
+
+        // Remove source folder if now empty
+        if (Object.keys(this.folders[sourceFolder]).length === 0) {
+            delete this.folders[sourceFolder];
+        }
+        // Update UI
+        this.populateFolderNavigation(this.folderNavigation); // Refresh folder list
+        if (this.currentFolder === sourceFolder || this.currentFolder === targetFolder) {
+            this.loadFolderImages(this.currentFolder); // Reload current folder
+        }
+    }
+
+
+    //---------- Delete Functionality ----------
+
+    /**
+     * Shows a confirmation modal before deleting an image.
+     * @param {string} imageUrl - The URL of the image to delete.
+     */
+    confirmAndDelete(imageUrl) {
+        // Create modal elements
+        const modal = document.createElement('div');
+        modal.classList.add('delete-modal');
+
+        const modalContent = document.createElement('div');
+        modalContent.classList.add('delete-modal-content');
+
+        const message = document.createElement('p');
+        message.textContent = 'Are you sure you want to delete this image?';
+        modalContent.appendChild(message);
+
+        const buttonContainer = document.createElement('div');
+        buttonContainer.classList.add('delete-button-container');
+
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.classList.add('cancel-delete-button');
+        cancelButton.onclick = () => {
+            modal.remove(); // Remove modal on cancel
+        };
+        buttonContainer.appendChild(cancelButton);
+
+        const confirmButton = document.createElement('button');
+        confirmButton.textContent = 'Delete';
+        confirmButton.classList.add('confirm-delete-button');
+        confirmButton.onclick = () => {
+            this.deleteImage(imageUrl); // Call delete function on confirm
+            modal.remove();
+        };
+        buttonContainer.appendChild(confirmButton);
+        modalContent.appendChild(buttonContainer);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal); // Add modal to the DOM
+    }
+
+    /**
+     * Deletes an image via API call and updates the UI.
+     * @param {string} imageUrl - The URL of the image to delete.
+     */
+    async deleteImage(imageUrl) {
+        // Extract folder and filename BEFORE making the API call
+        const urlParts = imageUrl.split('/');
+        const filename = urlParts.pop();
+        const folderName = urlParts.slice(2).join('/'); // Everything after /static_gallery/
+
+        // Store the original folder data for potential rollback
+        const originalFolders = JSON.parse(JSON.stringify(this.folders));
+
+        // Optimistically update the UI *before* the API call
+        this.removeFile(folderName, filename);
+        this.closeInfoWindow();
+
+        try {
+            const response = await fetch("/Gallery/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image_path: imageUrl })
+            });
+
+            if (response.ok) {
+                console.log(`Image deleted: ${imageUrl}`);
+                // Server confirmed deletion, so no need to do anything else.
+            } else {
+                console.error("Failed to delete image:", await response.text());
+                // Rollback: Restore the original folder data
+                this.folders = originalFolders;
+                this.populateFolderNavigation(this.folderNavigation);
+                if (this.currentFolder) {
+                    this.loadFolderImages(this.currentFolder);
+                }
+
+                alert("Failed to delete image.  Please try again."); // User-friendly error
+            }
+        } catch (error) {
+            console.error("Error deleting image:", error);
+            // Rollback: Restore the original folder data
+            this.folders = originalFolders;
+            this.populateFolderNavigation(this.folderNavigation);
+            if (this.currentFolder) {
+                this.loadFolderImages(this.currentFolder);
+            }
+
+            alert("Error deleting image.  Please try again."); // User-friendly error
+        }
+    }
 }

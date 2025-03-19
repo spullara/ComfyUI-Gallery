@@ -104,7 +104,7 @@ export class GallerySettings {
         });
     }
 
-    
+
 
     /**
      * Creates a setting input field and label, and appends it to the settings body.
@@ -128,7 +128,7 @@ export class GallerySettings {
             input.type = 'text';
             input.id = `setting-${settingName}`;
             input.value = this.currentSettings[settingName] || GallerySettings.defaultSettings[settingName] || "";
-             input.addEventListener('input', (event) => {
+            input.addEventListener('input', (event) => {
                 this.pendingSettings[settingName] = event.target.value; // Update pending settings on input
             });
 
@@ -138,7 +138,7 @@ export class GallerySettings {
             input.type = 'checkbox';
             input.id = `setting-${settingName}`;
             input.checked = this.currentSettings[settingName] === true; // Ensure boolean comparison
-             input.addEventListener('change', (event) => {
+            input.addEventListener('change', (event) => {
                 this.pendingSettings[settingName] = event.target.checked; // Update pending settings on checkbox change
             });
         }
@@ -186,9 +186,9 @@ export class GallerySettings {
     applySettings() {
         const settingsToApply = {};
         for (const key of Object.keys(GallerySettings.defaultSettings)) {
-             if (this.currentSettings[key] !== this.gallery.currentSettings?.[key]) { // Only apply changed settings
+            if (this.currentSettings[key] !== this.gallery.currentSettings?.[key]) { // Only apply changed settings
                 settingsToApply[key] = this.currentSettings[key];
-             }
+            }
         }
 
 
@@ -211,6 +211,6 @@ export class GallerySettings {
             this.gallery.updateHideOpenButton(settingsToApply.hideOpenButton);
         }
         // Store current settings in gallery for comparison in next applySettings call
-        this.gallery.currentSettings = {...this.currentSettings};
+        this.gallery.currentSettings = { ...this.currentSettings };
     }
 }

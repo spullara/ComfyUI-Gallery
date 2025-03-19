@@ -186,10 +186,17 @@ export const galleryStyles = `
 
     /* Fullscreen Container Styles (for both image and info) */
     .fullscreen-container {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(0, 0, 0, 0.9); z-index: 2000;
-        justify-content: center; align-items: center;
-        flex-direction: column; /* Stack close button, content */
+            display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
     }
 
     /* Common close button style for both full image and info */
@@ -505,4 +512,311 @@ export const galleryStyles = `
         padding: 10px;
         text-align: center;
     }
+
+        
+    /* Delete Button Styles */
+    .delete-button {
+        background-color: #c0392b; /* Red color */
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.3s ease;
+        margin-top: 10px; /* Add some space above the button */
+    }
+    .delete-button:hover { background-color: #992d22; }
+
+    /* Delete Confirmation Modal Styles */
+    .delete-modal {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.7); z-index: 2003; /* Higher than other elements */
+        display: flex; justify-content: center; align-items: center;
+    }
+
+    .delete-modal-content {
+        background-color: #444; color: #ddd; border-radius: 8px; padding: 20px;
+        width: 400px; /* Fixed width for modal */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        text-align: center;
+    }
+
+    .delete-button-container {
+        display: flex; justify-content: space-around; margin-top: 20px;
+    }
+
+    .cancel-delete-button, .confirm-delete-button {
+        padding: 10px 15px; font-size: 16px; cursor: pointer;
+        border-radius: 4px; transition: background-color 0.3s ease;
+    }
+
+    .cancel-delete-button {
+        background-color: #555; color: white; border: none;
+    }
+    .cancel-delete-button:hover { background-color: #777; }
+
+    .confirm-delete-button {
+        background-color: #c0392b; color: white; border: none;
+    }
+    .confirm-delete-button:hover { background-color: #992d22; }
+
+    /* Drag and Drop Styles */
+    .dragging {
+        opacity: 0.5; /* Visual feedback for dragged item */
+    }
+    .drag-over {
+        background-color: #666;
+    }
+
+    
+    .info-window {
+        background-color: #333;
+        color: #eee;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        max-width: 90%;
+        max-height: 90%;
+        overflow-y: auto;
+        position: relative;
+        margin-top: 4rem;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Updated info-container styles */
+    .info-container {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+        gap: 1rem;
+        align-content: center;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Left side (image) */
+    .info-image-side {
+        width: 30%;
+        min-width: 250px;  /* Minimum width */
+        display: flex;
+        justify-content: center; /* Center the image horizontally */
+    }
+
+    .info-preview-container {
+        position: relative; /* For overlay */
+        /* Removed width: 100% */
+        display: flex;
+        justify-content: center;
+    }
+
+    .info-preview-image {
+        max-width: 100%;  /* Key for responsiveness */
+        max-height: 70vh;
+        display: block;
+        object-fit: contain;
+        border-radius: 0.5rem;
+    }
+
+    .info-button-overlay {
+        position: absolute;
+        top: 0.5rem;
+        left: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        z-index: 2002;
+    }
+
+    .info-overlay-button {
+        background-color: rgba(0, 0, 0, 0.6);
+        color: white;
+        border: none;
+        padding: 0.4rem 0.6rem;
+        font-size: 1rem;
+        cursor: pointer;
+        border-radius: 0.25rem;
+        transition: background-color 0.3s ease;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .info-overlay-button:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    /* Right side (metadata and buttons) */
+    .info-info-side {
+            width: 49%;
+        display: flex
+    ;
+        flex-direction: column;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Updated info-bottom-buttons styles */
+    .info-bottom-buttons {
+        display: flex;
+        justify-content: flex-start; /* Align buttons to the start */
+        width: 100%;
+        margin-bottom: 1rem;
+        flex-direction: row; /* Ensure buttons are in a row */
+        align-items: center; /* Vertically center buttons */
+    }
+
+    .raw-metadata-button, .delete-button {
+        background-color: #555;
+        color: #eee;
+        border: 1px solid #777;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        cursor: pointer;
+        border-radius: 0.25rem;
+        transition: background-color 0.3s ease;
+        /* No margin-top here */
+    }
+
+    /* Add margin to delete-button */
+    .delete-button {
+        background-color: #c0392b;
+        color: white;
+        border: none;
+        margin: 15px; /* Add margin */
+    }
+
+    .delete-button:hover {
+        background-color: #992d22;
+    }
+
+    .raw-metadata-button:hover {
+        background-color: #777;
+    }
+
+    .metadata-container {
+        width: 100%;
+    }
+
+    .metadata-table {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .metadata-row {
+        display: flex;
+        flex-direction: row;
+        align-items: baseline;
+    }
+
+    .metadata-label {
+        font-weight: bold;
+        margin-right: 0.5rem;
+        flex-basis: 8rem;
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .metadata-value {
+        flex: 1;
+        word-break: break-word;
+    }
+
+    /* Navigation buttons styles */
+    .prev-button,
+    .next-button {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background-color: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: none;
+        padding: 0.5rem 0.75rem;
+        font-size: 1.25rem;
+        cursor: pointer;
+        z-index: 2001;
+        border-radius: 0.25rem;
+    }
+
+    .prev-button {
+        left: 0.5rem;
+    }
+
+    .next-button {
+        right: 0.5rem;
+    }
+
+    .prev-button:hover,
+    .next-button:hover {
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+    /* Updated .info-content styles (if needed, but likely not) */
+    /* You probably don't need to change .info-content, as it's not directly used anymore */
+    .info-content {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 20px;
+        overflow: auto;
+        padding-top: 30px;
+        padding-bottom: 30px;
+    }
+    .fullscreen-container {
+            display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    /* Tooltip Styles (gallery_styles.js) */
+    .metadata-value {
+        position: relative; /* Ensure this is set */
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .metadata-value .tooltip {
+        position: fixed; /* Use fixed positioning */
+        /* Initial position (off-screen) */
+        left: -9999px;
+        top: -9999px;
+
+        background-color: #333; /* Darker background */
+        color: white;
+        padding: 0.5rem 0.75rem; /* More padding */
+        border-radius: 0.375rem; /* Larger border-radius */
+        font-size: 0.875rem;
+        z-index: 2003; /* Ensure it's on top */
+        opacity: 0;
+        pointer-events: none;
+        white-space: nowrap;
+        transition: opacity 0.2s ease, transform 0.2s ease; /* Add transform transition */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Add a shadow */
+        border: 1px solid #555; /* Add a border */
+    }
+
+    .metadata-value .tooltip-show {
+        opacity: 1;
+        transform: translate(-50%, -110%); /* Adjusted positioning */
+
+    }
+
+    .metadata-value .tooltip-hide {
+        opacity: 0;
+        transform: translate(-50%, -120%); /* Slightly further up on hide */
+    }
+ 
 `;

@@ -72,13 +72,13 @@ app.registerExtension({
                 gallerySettings: gallerySettingsInstance // Pass gallerySettingsInstance here
             });
             gallerySettingsInstance.gallery = gallery;
-
+    
             if (initialSettings.openButtonFloating) { // RESTORE FLOATING BUTTON STATE ON LOAD
                 gallery.enableFloatingButton(); // Enable floating button if setting is true
             }
-
+    
             startMonitoring(initialSettings.relativePath);
-
+    
             app.api.fetchApi(`/Gallery/images?relative_path=${encodeURIComponent(initialSettings.relativePath)}`)
                 .then(response => response.text())
                 .then(text => {
@@ -93,6 +93,9 @@ app.registerExtension({
                     console.log("data:", data);
                     gallery.initializeFolders(data.folders || {});
                 });
+             if (initialSettings.hideOpenButton) { // ADDED: Initial button visibility
+                gallery.updateHideOpenButton(initialSettings.hideOpenButton); // Enable floating button if setting is true
+            }
         }
     },
     async nodeCreated(node) {

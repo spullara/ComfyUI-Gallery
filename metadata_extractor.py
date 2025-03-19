@@ -69,7 +69,7 @@ def buildMetadata(image_path):
                     try:
                         metadata[str(k)] = json.loads(v)
                     except json.JSONDecodeError as e:
-                        print(f"Debug: Error parsing {k} as JSON, trying as string: {e}")
+                        # print(f"Debug: Error parsing {k} as JSON, trying as string: {e}")
                         metadata[str(k)] = v # Keep as string if parsing fails
                 else:
                     metadata[str(k)] = v # If not a string, keep as is

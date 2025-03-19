@@ -89,11 +89,9 @@ async def get_gallery_images(request):
     scan_thread = threading.Thread(target=thread_target)
     scan_thread.start()
     # Wait result and process it.
-    while True:
-        if not result_queue.empty():
-            result = result_queue.get()
-            return on_scan_complete(result)
-        await asyncio.sleep(0.01)
+    result = result_queue.get() # BLOCKING call
+    return on_scan_complete(result)
+
 
 
 @PromptServer.instance.routes.post("/Gallery/monitor/start")

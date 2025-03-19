@@ -23,7 +23,8 @@ export class GallerySettings {
             openButtonBoxQuery: "div.flex.gap-2.mx-2",
             openButtonLabel: "Open Gallery",
             openButtonFloating: false,
-            autoPlayVideos: true
+            autoPlayVideos: true,
+            hideOpenButton: false, // ADDED: New setting
         };
     }
 
@@ -84,6 +85,7 @@ export class GallerySettings {
         this.createSettingInput(settingsBody, "openButtonLabel", "Button Label", "string");
         this.createSettingInput(settingsBody, "openButtonFloating", "Floating Button", "checkbox");
         this.createSettingInput(settingsBody, "autoPlayVideos", "Auto Play Videos", "checkbox");
+        this.createSettingInput(settingsBody, "hideOpenButton", "Hide Open Button", "checkbox"); // ADDED: hideOpenButton input
 
         const saveButton = document.createElement('button');
         saveButton.textContent = 'Save Settings';
@@ -101,6 +103,8 @@ export class GallerySettings {
             }
         });
     }
+
+    
 
     /**
      * Creates a setting input field and label, and appends it to the settings body.
@@ -200,8 +204,11 @@ export class GallerySettings {
         if (settingsToApply.openButtonFloating !== undefined) {
             this.gallery.updateButtonFloating(settingsToApply.openButtonFloating);
         }
-        if (settingsToApply.openButtonFloating !== undefined) {
+        if (settingsToApply.autoPlayVideos !== undefined) {
             this.gallery.updateAutoplayVideos(settingsToApply.autoPlayVideos);
+        }
+        if (settingsToApply.hideOpenButton !== undefined) { // ADDED: Check for hideOpenButton change
+            this.gallery.updateHideOpenButton(settingsToApply.hideOpenButton);
         }
         // Store current settings in gallery for comparison in next applySettings call
         this.gallery.currentSettings = {...this.currentSettings};

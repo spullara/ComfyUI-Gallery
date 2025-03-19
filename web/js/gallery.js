@@ -60,6 +60,7 @@ export class Gallery {
         this.createButton();
         this.createPopup();
         this.applyStyles();
+        this.updateHideOpenButton(this.currentSettings.hideOpenButton); // ADDED: Initial button visibility
     }
 
 
@@ -71,6 +72,8 @@ export class Gallery {
         this.updateButtonLabel(this.currentSettings.openButtonLabel);
         this.updateButtonFloating(this.currentSettings.openButtonFloating);
     }
+
+
 
     /**
      * Updates the relative path setting and reloads gallery data.
@@ -130,6 +133,20 @@ export class Gallery {
      */
     updateAutoplayVideos(autoPlayVideos) {
         this.currentSettings.autoPlayVideos = autoPlayVideos;
+    }
+
+    /**
+     * Updates the hide/show state of the open button.
+     * @param {boolean} hide - True to hide the button, false to show it.
+     */
+    updateHideOpenButton(hide) {
+        this.currentSettings.hideOpenButton = hide;
+        if (this.galleryButton) {
+            this.galleryButton.style.display = hide ? 'none' : 'block'; // Or 'inline-block', etc.
+        }
+         if (this.floatingButtonContainer) { // Also hide/show floating container
+                this.floatingButtonContainer.style.display = hide ? 'none' : 'flex';
+        }
     }
 
     /**
@@ -555,7 +572,7 @@ export class Gallery {
     }
 
     /**
-     * Loads and displays images for a given folder. (Modified to work with nested data structure)
+     * Loads and displays images for a given folder. (Modified to work with nested data structure and provide index)
      * @param {string} folderName - The name of the folder to load images from.
      */
     loadFolderImages(folderName) {
@@ -600,7 +617,7 @@ export class Gallery {
         filteredImages = this.sortImagesArray(filteredImages, this.currentSort);
 
         let lastDate = null;
-        filteredImages.forEach(imageInfo => {
+        filteredImages.forEach((imageInfo, index) => { // Pass index here
             const imageDate = (this.currentSort === "newest" || this.currentSort === "oldest") ? imageInfo.date.split(" ")[0] : null;
             if (imageDate && imageDate !== lastDate) {
                 const dateSeparator = document.createElement('div');
@@ -609,7 +626,8 @@ export class Gallery {
                 imageDisplay.appendChild(dateSeparator);
                 lastDate = imageDate;
             }
-            this.createImageCard(imageDisplay, imageInfo);
+            // CORRECTED: index and filteredImages were already in scope.
+            this.createImageCard(imageDisplay, imageInfo, index, filteredImages);
         });
 
         this.setupLazyLoading(imageDisplay);
@@ -619,8 +637,10 @@ export class Gallery {
      * Creates and appends an image card to the image display area.
      * @param {HTMLElement} imageDisplay - The container for image cards.
      * @param {object} imageInfo - Information about the image (name, url, metadata).
+     * @param {number} index - The index of the image in the *filtered* list.
+     * @param {Array<object>} filteredImages - Array of filtered image info.
      */
-    createImageCard(imageDisplay, imageInfo) {
+    createImageCard(imageDisplay, imageInfo, index, filteredImages) {
         const card = document.createElement('div');
         card.classList.add('image-card');
 
@@ -638,9 +658,15 @@ export class Gallery {
             imageElement.onerror = () => {
                 imageElement.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M0 0h24v24H0z' fill='none'/%3E%3Cpath d='M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z' fill='%23c0392b'/%3E%3C/svg%3E";
             };
-            imageElement.onclick = () => this.showFullscreenImage(imageInfo.url);
+            // Ensure index and filteredImages are passed correctly
+            imageElement.onclick = () => {
+                if (typeof index === 'undefined' || !filteredImages) {
+                    console.error("createImageCard: onclick: index or filteredImages is undefined!", { index, filteredImages });
+                }
+                this.showFullscreenImage(imageInfo.url, index, filteredImages);
+            };
             imageContainer.appendChild(imageElement);
-        } else {  
+        } else {
             const imageElement = document.createElement('video');
             imageElement.alt = imageInfo.name;
             imageElement.controls = false;
@@ -655,10 +681,16 @@ export class Gallery {
             imageElement.onload = () => {
                 if (this.currentSettings.autoPlayVideos) imageElement.play();
             }
-            imageElement.onclick = () => this.showFullscreenImage(imageInfo.url);
+            // Ensure index and filteredImages are passed correctly
+            imageElement.onclick = () => {
+                if (typeof index === 'undefined' || !filteredImages) {
+                    console.error("createImageCard: onclick: index or filteredImages is undefined!", { index, filteredImages });
+                }
+                this.showFullscreenImage(imageInfo.url, index, filteredImages);
+            };
             imageContainer.appendChild(imageElement);
         }
-        
+
 
         const overlay = document.createElement('div');
         overlay.classList.add('card-overlay');
@@ -678,12 +710,14 @@ export class Gallery {
             infoButton.textContent = 'Info';
             infoButton.onclick = (event) => {
                 event.stopPropagation();
-                this.showInfoWindow(imageInfo.metadata, imageInfo.url);
+                // Ensure index and filteredImages are passed correctly
+                if (typeof index === 'undefined' || !filteredImages) {
+                    console.error("createImageCard: infoButton onclick: index or filteredImages is undefined!", { index, filteredImages });
+                }
+                this.showInfoWindow(imageInfo.metadata, imageInfo.url, index, filteredImages);
             };
             overlay.appendChild(infoButton);
         }
-
-        
 
         imageContainer.appendChild(overlay);
         card.appendChild(imageContainer);
@@ -692,68 +726,222 @@ export class Gallery {
 
 
     /**
-     * Displays a single image in fullscreen mode.
-     * @param {string} imageUrl - The URL of the image to display.
-     */
-    showFullscreenImage(imageUrl) {
-        this.fullscreenContainer.innerHTML = '';
-        this.fullscreenContainer.style.display = 'flex';
+ * Displays a single image in fullscreen mode, with next/previous buttons.
+ * @param {string} imageUrl - The URL of the image to display.
+ * @param {number} index - The index of the image within the *filtered* image list.
+ * @param {Array<object>} filteredImages - The array of currently filtered images.
+ */
+showFullscreenImage(imageUrl, index, filteredImages) {
+    console.log("showFullscreenImage called:", { imageUrl, index, filteredImages }); // DEBUGGING
 
-        const closeButton = document.createElement('span');
-        closeButton.classList.add('fullscreen-close');
-        closeButton.innerHTML = '×';
-        closeButton.onclick = () => this.closeFullscreenView();
-        this.fullscreenContainer.appendChild(closeButton);
+    this.fullscreenContainer.innerHTML = '';
+    this.fullscreenContainer.style.display = 'flex';
 
-        if (
-            !imageUrl.includes(".mp4") &&
-            !imageUrl.includes(".webm")
-        ) {
-            this.fullscreenImage = document.createElement('img');
-            this.fullscreenImage.classList.add('fullscreen-image');
-            this.fullscreenImage.src = imageUrl;
-            this.fullscreenContainer.appendChild(this.fullscreenImage);
+    const closeButton = document.createElement('span');
+    closeButton.classList.add('fullscreen-close');
+    closeButton.innerHTML = '×';
+    closeButton.onclick = () => this.closeFullscreenView();
+    this.fullscreenContainer.appendChild(closeButton);
+
+    // Previous Button
+    const prevButton = document.createElement('button');
+    prevButton.textContent = '<';
+    prevButton.style.position = 'absolute';
+    prevButton.style.left = '20px';
+    prevButton.style.top = '50%';
+    prevButton.style.transform = 'translateY(-50%)';
+    prevButton.style.zIndex = '2002';
+    prevButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    prevButton.style.color = 'white';
+    prevButton.style.border = 'none';
+    prevButton.style.padding = '10px 15px';
+    prevButton.style.fontSize = '20px';
+    prevButton.style.cursor = 'pointer';
+    prevButton.onclick = (event) => {
+        event.stopPropagation();
+        if (filteredImages && filteredImages.length > 0) { // More robust check
+            const prevIndex = (index - 1 + filteredImages.length) % filteredImages.length;
+            this.showFullscreenImage(filteredImages[prevIndex].url, prevIndex, filteredImages);
         } else {
-            this.fullscreenImage = document.createElement('video');
-            this.fullscreenImage.classList.add('fullscreen-video');
-            this.fullscreenImage.src = imageUrl;
-            this.fullscreenImage.controls = true;
-            this.fullscreenImage.autoplay = true;
-            this.fullscreenImage.loop = true;
-            this.fullscreenContainer.appendChild(this.fullscreenImage);
+            console.warn("showFullscreenImage: prevButton: filteredImages is invalid", filteredImages);
         }
+    };
 
-        this.infoWindow.style.display = 'none';
-        this.rawMetadataWindow.style.display = 'none';
-        this.galleryPopup.style.zIndex = '1001';
+    // More robust condition for displaying the previous button
+    if (filteredImages && filteredImages.length > 1 && index > 0) {
+        this.fullscreenContainer.appendChild(prevButton);
+        console.log("Previous button added"); // DEBUG
+    } else {
+        console.log("Previous button NOT added. Conditions:", {
+            filteredImagesExist: !!filteredImages,
+            lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
+            indexGreaterThan0: index > 0,
+        }); // DEBUG
     }
 
-    /**
-     * Shows the info window for an image, displaying its metadata.
-     * @param {object} metadata - The metadata of the image.
-     * @param {string} imageUrl - The URL of the image preview.
-     */
-    showInfoWindow(metadata, imageUrl) {
-        this.fullscreenContainer.innerHTML = '';
-        this.fullscreenContainer.style.display = 'flex';
 
-        const closeButton = document.createElement('span');
-        closeButton.classList.add('info-close');
-        closeButton.innerHTML = '×';
-        closeButton.onclick = () => this.closeFullscreenView();
-        this.fullscreenContainer.appendChild(closeButton);
+    // Next Button
+    const nextButton = document.createElement('button');
+    nextButton.textContent = '>';
+    nextButton.style.position = 'absolute';
+    nextButton.style.right = '20px';
+    nextButton.style.top = '50%';
+    nextButton.style.transform = 'translateY(-50%)';
+    nextButton.style.zIndex = '2002';
+    nextButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    nextButton.style.color = 'white';
+    nextButton.style.border = 'none';
+    nextButton.style.padding = '10px 15px';
+    nextButton.style.fontSize = '20px';
+    nextButton.style.cursor = 'pointer';
+    nextButton.onclick = (event) => {
+        event.stopPropagation();
+        if (filteredImages && filteredImages.length > 0) { // More robust check
+            const nextIndex = (index + 1) % filteredImages.length;
+            this.showFullscreenImage(filteredImages[nextIndex].url, nextIndex, filteredImages);
+        } else {
+             console.warn("showFullscreenImage: nextButton: filteredImages is invalid", filteredImages);
+        }
+    };
 
-        const infoContent = document.createElement('div');
-        infoContent.classList.add('info-content');
-        this.fullscreenContainer.appendChild(infoContent);
-
-        this.populateInfoWindowContent(infoContent, metadata, imageUrl);
-
-        this.infoWindow.style.display = 'block';
-        this.rawMetadataWindow.style.display = 'none';
-        this.fullscreenImage = null;
-        this.galleryPopup.style.zIndex = '1001';
+    // More robust condition for displaying the next button
+    if (filteredImages && filteredImages.length > 1 && index < filteredImages.length - 1) {
+        this.fullscreenContainer.appendChild(nextButton);
+        console.log("Next button added"); // DEBUG
+    } else {
+         console.log("Next button NOT added. Conditions:", {
+            filteredImagesExist: !!filteredImages,
+            lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
+            indexLessThanLengthMinus1: filteredImages ? index < filteredImages.length - 1 : false,
+        }); // DEBUG
     }
+
+
+    if (
+        !imageUrl.includes(".mp4") &&
+        !imageUrl.includes(".webm")
+    ) {
+        this.fullscreenImage = document.createElement('img');
+        this.fullscreenImage.classList.add('fullscreen-image');
+        this.fullscreenImage.src = imageUrl;
+        this.fullscreenContainer.appendChild(this.fullscreenImage);
+    } else {
+        this.fullscreenImage = document.createElement('video');
+        this.fullscreenImage.classList.add('fullscreen-video');
+        this.fullscreenImage.src = imageUrl;
+        this.fullscreenImage.controls = true;
+        this.fullscreenImage.autoplay = true;
+        this.fullscreenImage.loop = true;
+        this.fullscreenContainer.appendChild(this.fullscreenImage);
+    }
+
+    this.infoWindow.style.display = 'none';
+    this.rawMetadataWindow.style.display = 'none';
+    this.galleryPopup.style.zIndex = '1001';
+}
+
+/**
+ * Shows the info window, with next/previous buttons for other images.
+ * @param {object} metadata - The metadata of the image.
+ * @param {string} imageUrl - The URL of the image.
+ * @param {number} index - The index of the image in the filtered list.
+ * @param {Array<object>} filteredImages -  The array of currently filtered images.
+ */
+showInfoWindow(metadata, imageUrl, index, filteredImages) {
+    console.log("showInfoWindow called:", { metadata, imageUrl, index, filteredImages }); // DEBUGGING
+
+    this.fullscreenContainer.innerHTML = '';
+    this.fullscreenContainer.style.display = 'flex';
+
+    const closeButton = document.createElement('span');
+    closeButton.classList.add('info-close');
+    closeButton.innerHTML = '×';
+    closeButton.onclick = () => this.closeFullscreenView();
+    this.fullscreenContainer.appendChild(closeButton);
+
+    // Previous Button
+    const prevButton = document.createElement('button');
+    prevButton.textContent = '<';
+    prevButton.style.position = 'absolute';
+    prevButton.style.left = '20px';
+    prevButton.style.top = '50%';
+    prevButton.style.transform = 'translateY(-50%)';
+    prevButton.style.zIndex = '2002'; // Ensure it's above the content
+    prevButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    prevButton.style.color = 'white';
+    prevButton.style.border = 'none';
+    prevButton.style.padding = '10px 15px';
+    prevButton.style.fontSize = '20px';
+    prevButton.style.cursor = 'pointer';
+    prevButton.onclick = (event) => {
+        event.stopPropagation();
+        if (filteredImages && filteredImages.length > 0) { // More robust check
+            const prevIndex = (index - 1 + filteredImages.length) % filteredImages.length;
+            this.showInfoWindow(filteredImages[prevIndex].metadata, filteredImages[prevIndex].url, prevIndex, filteredImages);
+        } else {
+            console.warn("showInfoWindow: prevButton: filteredImages is invalid", filteredImages);
+        }
+    };
+
+    // More robust condition for displaying the previous button
+    if (filteredImages && filteredImages.length > 1 && index > 0) {
+        this.fullscreenContainer.appendChild(prevButton);
+        console.log("Previous button added"); // DEBUG
+    } else {
+        console.log("Previous button NOT added. Conditions:", {
+            filteredImagesExist: !!filteredImages,
+            lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
+            indexGreaterThan0: index > 0,
+        }); // DEBUG
+    }
+
+    // Next Button
+    const nextButton = document.createElement('button');
+    nextButton.textContent = '>';
+    nextButton.style.position = 'absolute';
+    nextButton.style.right = '20px';
+    nextButton.style.top = '50%';
+    nextButton.style.transform = 'translateY(-50%)';
+    nextButton.style.zIndex = '2002';
+    nextButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    nextButton.style.color = 'white';
+    nextButton.style.border = 'none';
+    nextButton.style.padding = '10px 15px';
+    nextButton.style.fontSize = '20px';
+    nextButton.style.cursor = 'pointer';
+    nextButton.onclick = (event) => {
+        event.stopPropagation();
+        if (filteredImages && filteredImages.length > 0) { // More robust check
+            const nextIndex = (index + 1) % filteredImages.length;
+            this.showInfoWindow(filteredImages[nextIndex].metadata, filteredImages[nextIndex].url, nextIndex, filteredImages);
+        } else {
+            console.warn("showInfoWindow: nextButton: filteredImages is invalid", filteredImages);
+        }
+    };
+
+    // More robust condition for displaying the next button
+    if (filteredImages && filteredImages.length > 1 && index < filteredImages.length - 1) {
+        this.fullscreenContainer.appendChild(nextButton);
+        console.log("Next button added"); // DEBUG
+    } else {
+        console.log("Next button NOT added. Conditions:", {
+            filteredImagesExist: !!filteredImages,
+            lengthGreaterThan1: filteredImages ? filteredImages.length > 1 : false,
+            indexLessThanLengthMinus1: filteredImages ? index < filteredImages.length - 1 : false,
+        }); // DEBUG
+    }
+
+    const infoContent = document.createElement('div');
+    infoContent.classList.add('info-content');
+    this.fullscreenContainer.appendChild(infoContent);
+
+    this.populateInfoWindowContent(infoContent, metadata, imageUrl);
+
+    this.infoWindow.style.display = 'block';
+    this.rawMetadataWindow.style.display = 'none';
+    this.fullscreenImage = null;
+    this.galleryPopup.style.zIndex = '1001';
+}
 
 
     /**
@@ -793,23 +981,72 @@ export class Gallery {
         addMetadataRow("Resolution", metadata.fileinfo?.resolution);
         addMetadataRow("File Size", metadata.fileinfo?.size);
         addMetadataRow("Date Created", metadata.fileinfo?.date);
-        addMetadataRow("Model", metadata.prompt?.['1']?.inputs?.ckpt_name || metadata.prompt?.['1']?.inputs?.ckpt_name?.content);
-        addMetadataRow("Positive Prompt", metadata.prompt?.['2']?.inputs?.prompt || metadata.prompt?.['7']?.inputs?.text);
-        addMetadataRow("Negative Prompt", metadata.prompt?.['3']?.inputs?.prompt || metadata.prompt?.['8']?.inputs?.text);
-        addMetadataRow("Sampler", metadata.prompt?.['10']?.inputs?.sampler_name);
-        addMetadataRow("Scheduler", metadata.prompt?.['10']?.inputs?.scheduler);
-        addMetadataRow("Steps", metadata.prompt?.['10']?.inputs?.steps);
-        addMetadataRow("CFG Scale", metadata.prompt?.['10']?.inputs?.cfg);
-        addMetadataRow("Seed", metadata.prompt?.['10']?.inputs?.seed);
+
+
+        let workflowToParse = null;
+
+        // Prioritize workflow.nodes, then workflow, then prompt, handling JSON parsing
+        if (metadata.workflow && typeof metadata.workflow === 'string') {
+            try {
+                metadata.workflow = JSON.parse(metadata.workflow);
+            } catch (e) {
+                console.warn("Error parsing workflow JSON:", e);
+            }
+        }
+
+        if (metadata.prompt && typeof metadata.prompt === 'string') {
+            try {
+                metadata.prompt = JSON.parse(metadata.prompt);
+            } catch (e) {
+                console.warn("Error parsing prompt JSON:", e);
+            }
+        }
+
+        if (metadata?.workflow?.nodes && Array.isArray(metadata.workflow.nodes)) {
+            workflowToParse = metadata.workflow.nodes;
+        } else if (metadata?.workflow && typeof metadata.workflow === 'object') {
+             workflowToParse = metadata.workflow;
+        }else if (metadata?.prompt && typeof metadata.prompt === 'object') {
+            workflowToParse = metadata.prompt
+        } else {
+            console.warn("No workflow or prompt data found in metadata.", metadata);
+        }
+
+        const parsedMetadata = workflowToParse ? this.parseWorkflow(workflowToParse) : {};
+
+
+        addMetadataRow("Model", parsedMetadata.Model  || metadata.prompt?.['1']?.inputs?.ckpt_name || metadata.prompt?.['1']?.inputs?.ckpt_name?.content);
+        addMetadataRow("Positive Prompt", parsedMetadata["Positive Prompt"] || metadata.prompt?.['2']?.inputs?.prompt || metadata.prompt?.['7']?.inputs?.text);
+        addMetadataRow("Negative Prompt", parsedMetadata["Negative Prompt"] || metadata.prompt?.['3']?.inputs?.prompt || metadata.prompt?.['8']?.inputs?.text);
+        addMetadataRow("Sampler", parsedMetadata.Sampler || metadata.prompt?.['10']?.inputs?.sampler_name);
+        addMetadataRow("Scheduler", parsedMetadata.Scheduler || metadata.prompt?.['10']?.inputs?.scheduler);
+        addMetadataRow("Steps", parsedMetadata.Steps || metadata.prompt?.['10']?.inputs?.steps);
+        addMetadataRow("CFG Scale", parsedMetadata["CFG Scale"] || metadata.prompt?.['10']?.inputs?.cfg);
+        addMetadataRow("Seed", parsedMetadata.Seed || metadata.prompt?.['10']?.inputs?.seed);
+
 
         let loras = [];
-        for (const key in metadata.prompt) {
-            if (metadata.prompt[key].class_type === 'LoraLoader') {
-                loras.push(metadata.prompt[key].inputs.lora_name);
-            } else if (metadata.prompt[key].class_type === 'Power Lora Loader (rgthree)') {
-                for (let loraKey in metadata.prompt[key].inputs) {
-                    if (loraKey.startsWith('lora_') && metadata.prompt[key].inputs[loraKey].on) {
-                        loras.push(metadata.prompt[key].inputs[loraKey].lora);
+        if (parsedMetadata.LoRAs) {
+                if (Array.isArray(parsedMetadata.LoRAs)) {
+                    parsedMetadata.LoRAs.forEach(lora => {
+                        if (typeof lora === 'object' && lora.name) {
+                            loras.push(`${lora.name} (Model: ${lora.model_strength}, Clip: ${lora.clip_strength})`);
+                        } else if (typeof lora === 'string') {
+                          loras.push(lora)
+                        }
+                    });
+                } else if (typeof parsedMetadata.LoRAs === 'object' && parsedMetadata.LoRAs.name) {
+                    loras.push(`${parsedMetadata.LoRAs.name} (Model: ${parsedMetadata.LoRAs.model_strength}, Clip: ${parsedMetadata.LoRAs.clip_strength})`);
+                }
+         } else {
+            for (const key in metadata.prompt) {
+                if (metadata.prompt[key].class_type === 'LoraLoader') {
+                    loras.push(metadata.prompt[key].inputs.lora_name);
+                } else if (metadata.prompt[key].class_type === 'Power Lora Loader (rgthree)') {
+                    for (let loraKey in metadata.prompt[key].inputs) {
+                        if (loraKey.startsWith('lora_') && metadata.prompt[key].inputs[loraKey].on) {
+                            loras.push(metadata.prompt[key].inputs[loraKey].lora);
+                        }
                     }
                 }
             }
@@ -825,6 +1062,7 @@ export class Gallery {
         };
         infoContent.appendChild(rawMetadataButton);
     }
+
 
 
     /**
@@ -1098,67 +1336,6 @@ export class Gallery {
     }
 
     /**
-     * Loads and displays images for a given folder. (Modified to work with nested data structure)
-     * @param {string} folderName - The name of the folder to load images from.
-     */
-    loadFolderImages(folderName) {
-        if (!folderName) return;
-        this.currentFolder = folderName;
-
-        // Update active folder button
-        const folderButtons = this.galleryPopup.querySelectorAll('.folder-button');
-        folderButtons.forEach(button => {
-            button.classList.toggle('active-folder', button.textContent === folderName);
-        });
-
-        const imageDisplay = this.galleryPopup?.querySelector('.image-display');
-        if (!imageDisplay) return;
-
-        imageDisplay.innerHTML = '';
-        let folderContent = this.folders[folderName]; // Get folder content from nested structure
-
-        if (!folderContent || Object.keys(folderContent).length === 0) { // Check if folderContent is empty
-            imageDisplay.textContent = 'No images in this folder.';
-            imageDisplay.classList.add('empty-gallery-message');
-            return;
-        }
-        imageDisplay.classList.remove('empty-gallery-message');
-
-        let images = Object.values(folderContent); // Get array of image info objects for sorting/filtering
-
-        let filteredImages = images;
-        if (this.searchText) {
-            const searchTerm = this.searchText.toLowerCase();
-            filteredImages = images.filter(imageInfo => imageInfo.name.toLowerCase().includes(searchTerm));
-        }
-
-
-        if (filteredImages.length === 0 && this.searchText) {
-            imageDisplay.textContent = 'No images found for your search.';
-            imageDisplay.classList.add('empty-gallery-message');
-            return;
-        }
-        imageDisplay.classList.remove('empty-gallery-message');
-
-        filteredImages = this.sortImagesArray(filteredImages, this.currentSort);
-
-        let lastDate = null;
-        filteredImages.forEach(imageInfo => {
-            const imageDate = (this.currentSort === "newest" || this.currentSort === "oldest") ? imageInfo.date.split(" ")[0] : null;
-            if (imageDate && imageDate !== lastDate) {
-                const dateSeparator = document.createElement('div');
-                dateSeparator.classList.add('date-separator');
-                dateSeparator.textContent = imageDate;
-                imageDisplay.appendChild(dateSeparator);
-                lastDate = imageDate;
-            }
-            this.createImageCard(imageDisplay, imageInfo);
-        });
-
-        this.setupLazyLoading(imageDisplay);
-    }
-
-    /**
      * Applies CSS styles to the document head.
      */
     applyStyles() {
@@ -1166,4 +1343,296 @@ export class Gallery {
         style.textContent = galleryStyles; // Use imported styles
         document.head.appendChild(style);
     }
+
+     /**
+ * Parses a workflow object to extract relevant metadata.
+ * @param {object} workflow - The workflow object or array of nodes.
+ * @returns {object} Extracted metadata.
+ */
+parseWorkflow(workflow) {
+    // Handle cases where workflow might be an object, not just an array of nodes
+    if (!Array.isArray(workflow) && typeof workflow === 'object') {
+        const extractedData = {};
+        for (const key in workflow) {
+            if (workflow[key]?.inputs?.ckpt_name) {
+                extractedData.Model = workflow[key].inputs.ckpt_name;
+            } else if (workflow[key]?.inputs?.text && (key === '2' || key === '7')) {
+                extractedData["Positive Prompt"] = workflow[key].inputs.text
+            } else if (workflow[key]?.inputs?.text && (key === '3' || key === '8')) {
+                extractedData["Negative Prompt"] = workflow[key].inputs.text
+            } else if (workflow[key]?.inputs?.sampler_name) {
+                extractedData["Sampler"] = workflow[key].inputs.sampler_name
+            } else if (workflow[key]?.inputs?.scheduler) {
+                extractedData["Scheduler"] = workflow[key].inputs.scheduler
+            } else if (workflow[key]?.inputs?.steps) {
+                extractedData["Steps"] = workflow[key].inputs.steps
+            } else if (workflow[key]?.inputs?.cfg) {
+                extractedData["CFG Scale"] = workflow[key].inputs.cfg
+            } else if (workflow[key]?.inputs?.seed) {
+                extractedData["Seed"] = workflow[key].inputs.seed
+            }
+        }
+
+        return extractedData;
+    }
+
+    const parsingConfig = {
+        Model: {
+            type: ["CheckpointLoaderSimple", "CheckpointLoader|pysssss"],
+            extract: (node) => node.widgets_values?.[0]?.content || node.widgets_values?.[0] || null,
+        },
+        "Positive Prompt": {
+            type: ["CR Prompt Text", "CLIPTextEncode", "ImpactWildcardProcessor", "Textbox", "easy showAnything"],
+            extract: (node) => {
+                if (node.title === "Positive Prompt") {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "CLIPTextEncode" && node.inputs?.find(input => input.name === "text")) {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "ImpactWildcardProcessor") {
+                    return node.widgets_values?.[1] || null;
+                } else if (node.type === "Textbox") {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "easy showAnything") {
+                    return node.widgets_values?.[0]?.[0] || null;
+                }
+                return null;
+            },
+            getColor: (node) => node.color,
+            getBgColor: (node) => node.bgcolor,
+            getText: (node) => node.widgets_values?.[0]?.[0],
+        },
+        "Negative Prompt": {
+            type: ["CR Prompt Text", "CLIPTextEncode", "Textbox", "easy showAnything"],
+            extract: (node) => {
+                if (node.title === "Negative Prompt") {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "CLIPTextEncode" && node.inputs?.find(input => input.name === "text")) {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "Textbox") {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "easy showAnything") {
+                    return node.widgets_values?.[0]?.[0] || null;
+                }
+                return null;
+            },
+            getColor: (node) => node.color,
+            getBgColor: (node) => node.bgcolor,
+            getText: (node) => node.widgets_values?.[0]?.[0],
+        },
+        Sampler: {
+            type: ["KSampler", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale"],
+            extract: (node) => {
+                if (node.type === "KSampler") {
+                    return node.widgets_values?.[4] || null;
+                } else if (node.type === "SamplerCustom") {
+                    return node.inputs?.find(input => input.name === "sampler")?.widget?.name || null;
+                } else if (node.type === "FaceDetailerPipe") {
+                    return node.widgets_values?.[7] || null;
+                } else if (node.type === "Ultimate SD Upscale") {
+                    return node.widgets_values?.[5] || null;
+                }
+                return null;
+            },
+        },
+        Scheduler: {
+            type: ["KSampler", "KarrasScheduler", "FaceDetailerPipe", "Ultimate SD Upscale"],
+            extract: (node) => {
+                if (node.type === "KSampler") {
+                    return node.widgets_values?.[5] || null;
+                } else if (node.type === "KarrasScheduler") {
+                    return "karras";
+                } else if (node.type === "FaceDetailerPipe") {
+                    return node.widgets_values?.[8] || null;
+                } else if (node.type === "Ultimate SD Upscale") {
+                    return node.widgets_values?.[6] || null;
+                }
+                return null;
+            },
+        },
+        Steps: {
+            type: ["KSampler", "KarrasScheduler", "FaceDetailerPipe", "Ultimate SD Upscale"],
+            extract: (node) => {
+                if (node.type === "KSampler") {
+                    return node.widgets_values?.[2] || null;
+                } else if (node.type === "KarrasScheduler") {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "FaceDetailerPipe") {
+                    return node.widgets_values?.[5] || null;
+                } else if (node.type === "Ultimate SD Upscale") {
+                    return node.widgets_values?.[2] || null;
+                }
+                return null;
+            },
+        },
+        "CFG Scale": {
+            type: ["KSampler", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale"],
+            extract: (node) => {
+                if (node.type === "KSampler") {
+                    return node.widgets_values?.[3] || null;
+                } else if (node.type === "SamplerCustom") {
+                    return node.inputs?.find(input => input.name === "cfg")?.value || null;
+                } else if (node.type === "FaceDetailerPipe") {
+                    return node.widgets_values?.[6] || null;
+                } else if (node.type === "Ultimate SD Upscale") {
+                    return node.widgets_values?.[4] || null;
+                }
+                return null;
+            },
+        },
+        Seed: {
+            type: ["KSampler", "Seed Generator", "SamplerCustom", "FaceDetailerPipe", "Ultimate SD Upscale", "ImpactWildcardProcessor"],
+            extract: (node) => {
+                if (node.type === "KSampler") {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "Seed Generator") {
+                    return node.widgets_values?.[0] || null;
+                } else if (node.type === "SamplerCustom") {
+                    return node.inputs?.find(input => input.name === "noise_seed")?.widget?.value || null;
+                } else if (node.type === "FaceDetailerPipe") {
+                    return node.widgets_values?.[3] || null;
+                } else if (node.type === "Ultimate SD Upscale") {
+                    return node.widgets_values?.[1] || null;
+                } else if (node.type === "ImpactWildcardProcessor") {
+                    return node.widgets_values?.[3] || null;
+                }
+                return null;
+            },
+        },
+        LoRAs: {
+            type: ["LoraLoader", "Power Lora Loader (rgthree)"],
+            extract: (node) => {
+                const loras = [];
+                if (node.type === "LoraLoader") {
+                    if (node.widgets_values && node.widgets_values.length >= 3) {
+                        loras.push({
+                            name: node.widgets_values[0],
+                            model_strength: node.widgets_values[1],
+                            clip_strength: node.widgets_values[2],
+                        });
+                    } else {
+                        console.warn("LoraLoader node has unexpected widgets_values structure:", node);
+                    }
+                } else if (node.type === "Power Lora Loader (rgthree)") {
+                    if (node.widgets_values) {
+                        for (let i = 1; i <= 9; i++) {
+                            if (node.widgets_values[i] && node.widgets_values[i].on) {
+                                loras.push({
+                                    name: node.widgets_values[i].lora,
+                                    strength: node.widgets_values[i].strength,
+                                });
+                            }
+                        }
+                    } else {
+                        console.warn("Power Lora Loader (rgthree) has unexpected widgets_values:", node);
+                    }
+                }
+                return loras.length > 0 ? loras : null;
+            },
+        },
+    };
+
+    const extractedData = {};
+
+    // First Pass: Explicit Titles (including LoRAs)
+    if (Array.isArray(workflow)) {
+        for (const key in parsingConfig) {
+            extractedData[key] = []; // Initialize the array for each key
+            const config = parsingConfig[key];
+            const seenValues = new Set(); // Keep track of seen values *per key*
+
+            for (const node of workflow) {
+                if (config.type.includes(node.type)) {
+                    // IMPORTANT: Only check for explicit titles *if* the key is NOT a prompt key
+                    if (key !== "Positive Prompt" && key !== "Negative Prompt") {
+                        const extractedValue = config.extract(node);
+                        if (extractedValue !== null && extractedValue !== undefined) {
+                            if (key === "LoRAs" && Array.isArray(extractedValue)) {
+                                extractedValue.forEach(lora => {
+                                    if (!seenValues.has(lora.name)) {
+                                        extractedData[key].push(lora);
+                                        seenValues.add(lora.name);
+                                    }
+                                });
+                            } else if (!seenValues.has(extractedValue)) {
+                                extractedData[key].push(extractedValue);
+                                seenValues.add(extractedValue);
+                            }
+                        }
+                    } else if (node.title === key) { // Handle explicit prompt titles
+                        const extractedValue = config.extract(node);
+                         if (extractedValue !== null && extractedValue !== undefined) {
+                            if (!seenValues.has(extractedValue)) {
+                                extractedData[key].push(extractedValue);
+                                 seenValues.add(extractedValue);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Handle empty/single element arrays
+            if (extractedData[key].length === 0) {
+                extractedData[key] = null;
+            } else if (extractedData[key].length === 1 && key !== "LoRAs") {
+                extractedData[key] = extractedData[key][0];
+            }
+        }
+    }
+    // Second Pass: Inference for easy showAnything and CLIPTextEncode (if prompts not found)
+    const promptInference = {
+        "Positive Prompt": {
+            colorPrefixes: ["#232", "#2"],
+            bgColorPrefixes: ["#353", "#3"],
+            keywords: ["positive", "prompt", "masterpiece", "best quality", "detailed"],
+        },
+        "Negative Prompt": {
+            colorPrefixes: ["#322", "#533", "#3", "#5"],
+            bgColorPrefixes: ["#533", "#653", "#5", "#6"],
+            keywords: ["negative", "prompt", "unrealistic", "bad", "worst quality", "low quality", "unwanted"],
+        },
+    };
+
+    if (Array.isArray(workflow)) {
+        for (const promptType in promptInference) {
+            if (extractedData[promptType] === null) {
+                extractedData[promptType] = []; // Initialize for inference
+                const seenValues = new Set();    // Track seen values during inference
+
+                for (const node of workflow) {
+                    const config = parsingConfig[promptType];
+                    // Only consider nodes suitable for inference
+                    if (config.type.includes(node.type) && !["CR Prompt Text"].includes(node.type)) {
+                        let extractedValue = null;
+                        const color = config.getColor(node);
+                        const bgColor = config.getBgColor(node);
+                        const text = config.getText(node)?.toLowerCase() || "";
+
+                        const colorMatch = promptInference[promptType].colorPrefixes.some(prefix => color?.startsWith(prefix));
+                        const bgColorMatch = promptInference[promptType].bgColorPrefixes.some(prefix => bgColor?.startsWith(prefix));
+                        const keywordMatch = promptInference[promptType].keywords.some(keyword => text.includes(keyword));
+
+                        if (colorMatch || bgColorMatch || keywordMatch) {
+                            extractedValue = config.extract(node);
+                        }
+
+                        if (extractedValue !== null && extractedValue !== undefined) {
+                            if (!seenValues.has(extractedValue)) {
+                                extractedData[promptType].push(extractedValue);
+                                seenValues.add(extractedValue);
+                            }
+                        }
+                    }
+                }
+
+                if (extractedData[promptType].length === 0) {
+                    extractedData[promptType] = null;
+                } else if (extractedData[promptType].length === 1) {
+                    extractedData[promptType] = extractedData[promptType][0];
+                }
+            }
+        }
+    }
+
+    return extractedData;
+}
 }

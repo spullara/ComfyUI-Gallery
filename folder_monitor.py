@@ -7,7 +7,7 @@ from watchdog.events import FileSystemEventHandler, PatternMatchingEventHandler
 from .folder_scanner import _scan_for_images  # Import folder scanner
 import asyncio
 from server import PromptServer
-import queue  # <--- THIS WAS MISSING
+import queue
 
 
 class GalleryEventHandler(PatternMatchingEventHandler):
@@ -90,7 +90,7 @@ class GalleryEventHandler(PatternMatchingEventHandler):
             """Callback to run in the main thread after scanning."""
             try:
 
-                result = self.result_queue.get_nowait()  # Use get_nowait.
+                result = self.result_queue.get()  # Use get - BLOCKING
 
                 if isinstance(result, Exception):
                     print(f"FileSystemMonitor: Error during scan: {result}")
@@ -102,7 +102,7 @@ class GalleryEventHandler(PatternMatchingEventHandler):
                     print("FileSystemMonitor: Changes detected after debounce, sending updates")
                     from .server import sanitize_json_data
                     # Correctly schedule the send_sync call on the main thread.
-                    asyncio.run_coroutine_threadsafe(PromptServer.instance.send_sync("Gallery.file_change", sanitize_json_data(changes)), PromptServer.instance.loop)
+                    PromptServer.instance.send_sync("Gallery.file_change", sanitize_json_data(changes)) # NO ASYNCIO NEEDED
                 else:
                     print("FileSystemMonitor: Changes detected by watchdog, but no relevant gallery changes after debounce.")
 
@@ -119,7 +119,8 @@ class GalleryEventHandler(PatternMatchingEventHandler):
         scan_thread.start()
 
         #Schedule the callback to be called when the scan is complete.
-        PromptServer.instance.loop.call_soon_threadsafe(on_scan_complete)
+        scan_thread.join() # Wait for the scan thread to actually complete!
+        on_scan_complete() # THEN call the completion function, now guaranteed to have data.
 
 
 

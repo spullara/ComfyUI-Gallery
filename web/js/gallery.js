@@ -425,7 +425,45 @@ export class Gallery {
         });
         header.appendChild(settingsButton);
 
+        // Close On Hover button
+        let seconds = 3;
+        const closeOnHoverButton = document.createElement('button');
+        closeOnHoverButton.id = "close-on-hover-button";
+        closeOnHoverButton.style.display = "none";
+        closeOnHoverButton.textContent = `Hover to close (${seconds}s)`;
+        closeOnHoverButton.classList.add('settings-button-header'); // Add specific class for header button
+        closeOnHoverButton.style.backgroundColor = "#3498db";
+        let timeout = null;
+        let timeTimeouts = [];
+        closeOnHoverButton.addEventListener('dragenter', () => { console.log("hover start")
+            closeOnHoverButton.style.backgroundColor = "#c0392b";
+            for (let i = 1; i < seconds + 1; i++) {
+                timeTimeouts[i] = setTimeout(() => {
+                    closeOnHoverButton.textContent = `Hover to close (${seconds - i}s)`;
+                }, i * 1000);
+            }
+            timeout = setTimeout(() => {
+                this.closeGallery();
+            }, 3000);
+        });
+        closeOnHoverButton.addEventListener('dragleave', () => { console.log("hover stop")
+            try {
+                clearTimeout(timeout);
+            } catch {
 
+            }
+            for (let i = 0; i < timeTimeouts.length; i++) {
+                try {
+                    clearTimeout(timeTimeouts[i]);
+                } catch {
+                    closeOnHoverButton.textContent = `Hover to close (${seconds}s)`;
+                }
+            }
+            closeOnHoverButton.style.backgroundColor = "#3498db";
+            closeOnHoverButton.textContent = `Hover to close (${seconds}s)`;
+        });
+        header.appendChild(closeOnHoverButton);
+    
         // Search Container
         const searchContainer = document.createElement('div');
         searchContainer.classList.add('search-container');
@@ -1784,6 +1822,7 @@ export class Gallery {
     setupCardDragEvents(card) {
         card.addEventListener('dragstart', this.handleDragStart.bind(this));
         card.addEventListener('dragover', this.handleDragOver.bind(this));  // Add dragover to card
+        card.addEventListener('dragend', this.handleDragEnd.bind(this)); 
         card.addEventListener('drop', this.handleDrop.bind(this)); // Add drop to card
     }
 
@@ -1802,10 +1841,15 @@ export class Gallery {
      * Handles the dragstart event.
      * @param {DragEvent} event - The drag event.
      */
-    handleDragStart(event) {
-        const imageUrl = event.target.getAttribute('data-image-url');
-        const imageName = event.target.getAttribute('data-image-name');
-        const imageFolder = event.target.getAttribute('data-image-folder');
+    handleDragStart(event) { console.log("handleDragStart")
+        let closeOnHoverButton = document.getElementById("close-on-hover-button");
+        if (closeOnHoverButton) {
+            closeOnHoverButton.style.display = "block";
+        }
+
+        const imageUrl = event.target.parentElement.parentNode.getAttribute('data-image-url');
+        const imageName = event.target.parentElement.parentNode.getAttribute('data-image-name');
+        const imageFolder = event.target.parentElement.parentNode.getAttribute('data-image-folder');
         event.dataTransfer.setData('text/plain', JSON.stringify({ imageUrl, imageName, imageFolder }));
         event.target.classList.add('dragging');
     }
@@ -1814,11 +1858,29 @@ export class Gallery {
      * Handles the dragover event.
      * @param {DragEvent} event - The drag event.
      */
-    handleDragOver(event) {
+    handleDragOver(event) { console.log("handleDragOver")
         event.preventDefault(); // Necessary to allow drop
         event.stopPropagation(); // ADD THIS LINE - Prevent ComfyUI workflow import
         if (event.target.classList.contains('folder-button')) {
             event.target.classList.add('drag-over'); // Add class for visual feedback
+        }
+    }
+
+    /**
+     * Handles the dragend event.
+     * @param {DragEvent} event - The drag event.
+     */
+    handleDragEnd(event) { console.log("handleDragEnd")
+        let closeOnHoverButton = document.getElementById("close-on-hover-button");
+        if (closeOnHoverButton) {
+            closeOnHoverButton.style.display = "none";
+        }
+        if (event.target.classList.contains("dragging")) {
+            event.target.classList.remove('dragging');
+        }
+        let folderButtons = document.querySelectorAll(".folder-button");
+        for (let i = 0; i < folderButtons.length; i++) {
+            folderButtons[i].classList.remove('drag-over')
         }
     }
 

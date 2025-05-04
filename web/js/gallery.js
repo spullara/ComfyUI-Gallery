@@ -49,7 +49,10 @@ export class Gallery {
         this.gallerySettings = options.gallerySettings; // Store GallerySettings instance // ADDED: Store setting instance
         /** @type {HTMLDivElement | null} */
         this.floatingButtonContainer = null;
-
+        /** @type {number | null} */
+        this.currentIndex = null;
+        /** @type {Array<object> | null} */
+        this.currentFilteredImages = null;
 
         this.init();
     }
@@ -888,6 +891,9 @@ export class Gallery {
         this.infoWindow.style.display = 'none';
         this.rawMetadataWindow.style.display = 'none';
         this.galleryPopup.style.zIndex = '1001';
+
+        this.currentIndex = index;
+        this.currentFilteredImages = filteredImages;
     }
 
     /**
@@ -991,6 +997,9 @@ export class Gallery {
         this.rawMetadataWindow.style.display = 'none';
         this.fullscreenImage = null;
         this.galleryPopup.style.zIndex = '1001';
+
+        this.currentIndex = index;
+        this.currentFilteredImages = filteredImages;
     }
 
 
@@ -1295,8 +1304,42 @@ export class Gallery {
         this.infoWindow.style.display = 'none';
         this.rawMetadataWindow.style.display = 'none';
         this.galleryPopup.style.zIndex = '1000';
+        this.currentIndex = null;
+        this.currentFilteredImages = null;
     }
 
+    /**
+     * Handles keydown events for hotkey navigation.
+     * @param {KeyboardEvent} event - The keydown event.
+     */
+    handleKeyDown = (event) => {
+        const { key: pressedKey } = event;
+        const isFullscreenVisible = this.fullscreenContainer.style.display === 'flex';
+        const isInfoVisible = this.infoWindow.style.display === 'block';
+        const hasImages = Array.isArray(this.currentFilteredImages);
+
+        if (pressedKey === 'Escape') {
+            isFullscreenVisible ? this.closeFullscreenView() : this.closeGallery();
+            return;
+        }
+
+        if (!hasImages || !['ArrowLeft', 'ArrowRight'].includes(pressedKey)) return;
+
+        const canMoveLeft = pressedKey === 'ArrowLeft' && this.currentIndex > 0;
+        const canMoveRight = pressedKey === 'ArrowRight' && this.currentIndex < this.currentFilteredImages.length - 1;
+
+        if (!canMoveLeft && !canMoveRight) return;
+
+        event.preventDefault();
+        const newIndex = this.currentIndex + (pressedKey === 'ArrowLeft' ? -1 : 1);
+        const imageData = this.currentFilteredImages[newIndex];
+    
+        if (isFullscreenVisible && this.infoWindow.style.display === 'none') {
+            this.showFullscreenImage(imageData.url, newIndex, this.currentFilteredImages);
+        } else if (isInfoVisible) {
+            this.showInfoWindow(imageData.metadata, imageData.url, newIndex, this.currentFilteredImages);
+        }
+    }
 
     /**
      * Sets up lazy loading for images in the given container.
@@ -1364,6 +1407,7 @@ export class Gallery {
     openGallery() {
         this.galleryPopup.style.display = 'flex';
         this.populateFolderNavigation(this.galleryPopup.querySelector('.folder-navigation'));
+        document.addEventListener('keydown', this.handleKeyDown);
     }
 
     /**
@@ -1371,6 +1415,7 @@ export class Gallery {
      */
     closeGallery() {
         if (this.galleryPopup) {
+            document.removeEventListener('keydown', this.handleKeyDown);
             this.galleryPopup.style.display = 'none';
         }
     }

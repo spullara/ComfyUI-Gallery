@@ -1210,13 +1210,13 @@ export class Gallery {
             if (Array.isArray(parsedMetadata.LoRAs)) {
                 parsedMetadata.LoRAs.forEach(lora => {
                     if (typeof lora === 'object' && lora.name) {
-                        loras.push(`${lora.name} (Model: ${lora.model_strength}, Clip: ${lora.clip_strength})`);
+                        loras.push(`${lora.name} (Model: ${lora.model_strength ?? lora.strength}, Clip: ${lora.clip_strength ?? 'N/A'})`);
                     } else if (typeof lora === 'string') {
                         loras.push(lora)
                     }
                 });
             } else if (typeof parsedMetadata.LoRAs === 'object' && parsedMetadata.LoRAs.name) {
-                loras.push(`${parsedMetadata.LoRAs.name} (Model: ${parsedMetadata.LoRAs.model_strength}, Clip: ${parsedMetadata.LoRAs.clip_strength})`);
+                loras.push(`${parsedMetadata.LoRAs.name} (Model: ${parsedMetadata.LoRAs.model_strength ?? parsedMetadata.LoRAs.strength}, Clip: ${parsedMetadata.LoRAs.clip_strength ?? 'N/A'})`);
             }
         } else {
             for (const key in metadata.prompt) {

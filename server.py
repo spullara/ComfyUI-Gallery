@@ -198,10 +198,16 @@ async def move_image(request):
         source_path = data.get("source_path")
         target_path = data.get("target_path")
 
-        print("source_path:" + source_path)
+        print("source_path:" + str(source_path))
 
         if not source_path or not target_path:
             return web.Response(status=400, text="source_path and target_path are required")
+
+        # Fix: Remove leading 'output/' if present
+        if source_path.startswith("output/"):
+            source_path = source_path[len("output/"):]
+        if target_path.startswith("output/"):
+            target_path = target_path[len("output/"):]
 
         # Construct the full absolute paths, correctly handling the ComfyUI output directory.
         base_output_dir = folder_paths.get_output_directory()
@@ -209,14 +215,6 @@ async def move_image(request):
         full_target_path = os.path.join(base_output_dir, target_path)
 
         print("base_output_dir:" + base_output_dir)
-        print("full_source_path:" + full_source_path)
-        print("full_target_path:" + full_target_path)
-
-        base = source_path.split("/")[0]
-
-        full_source_path = full_source_path.replace(base + "/" + base, base + "/")
-        full_target_path = full_target_path.replace(base + "/" + base, base + "/")
-
         print("full_source_path:" + full_source_path)
         print("full_target_path:" + full_target_path)
 
@@ -244,7 +242,6 @@ async def move_image(request):
         # Perform the move:
         shutil.move(full_source_path, full_target_path)
         return web.Response(text=f"Image moved from {source_path} to {target_path}")
-
 
     except Exception as e:
         print(f"Error moving image: {e}")

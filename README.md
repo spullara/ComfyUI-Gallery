@@ -33,8 +33,6 @@ This ComfyUI custom node provides a feature-rich, real-time gallery directly wit
     *   **Floating Button Mode:** Enable a draggable, floating "Open Gallery" button. Save its position across sessions.
     *   **Auto Play Videos:** Control whether videos automatically play.
     *   **Hide Open Button:** Hide/Show the Open Gallery Button
-*   **Hover to close button (v1.6.0):** A button where you hold your image to use it in your workflow.
-*   **Hotkeys navigation (v1.7.0):** Simple navigation with ← → arrows and ESC button while viewing images on fullscreen.
 
 ## Get Started:
 

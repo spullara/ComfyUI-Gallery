@@ -10,6 +10,6 @@ import os
 comfy_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(comfy_path)
 
-WEB_DIRECTORY = "./web/js"
+WEB_DIRECTORY = "./web/dist/assets"
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY'] 

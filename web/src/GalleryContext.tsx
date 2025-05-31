@@ -275,7 +275,6 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
     }, [...imageCards])
 
     useEventListener('keydown', (event) => {
-        console.log(event)
         if (settingsState?.galleryShortcut && event.code == "KeyG" && event.ctrlKey) {
             try {
                 event.preventDefault();

@@ -57,7 +57,19 @@ function ImageCard({
         }
     };
 
-    // console.log("selectedImages:", selectedImages);
+    // Native drag for exporting image as file/image
+    const handleNativeDragStart = (event: React.DragEvent<HTMLImageElement | HTMLVideoElement>) => {
+        // For images, set the drag data as a download URL
+        if (image.type === 'image') {
+            event.dataTransfer.setData('text/uri-list', `${BASE_PATH}${image.url}`);
+            event.dataTransfer.setData('DownloadURL', `image/png:${image.name}:${window.location.origin + BASE_PATH + image.url}`);
+        } else if (image.type === 'media') {
+            event.dataTransfer.setData('text/uri-list', `${BASE_PATH}${image.url}`);
+            event.dataTransfer.setData('DownloadURL', `video/mp4:${image.name}:${window.location.origin + BASE_PATH + image.url}`);
+        }
+        // Optionally, set a drag image
+        // event.dataTransfer.setDragImage(event.currentTarget, 10, 10);
+    };
 
     return (<>
         <div
@@ -96,6 +108,8 @@ function ImageCard({
                     loading="lazy"
                     // preview={false}
                     alt={image.name}
+                    draggable
+                    onDragStart={handleNativeDragStart}
                 />
             </>) : <>
                 <video
@@ -112,6 +126,8 @@ function ImageCard({
                         onVideoClick(image.name);
                         document.getElementById(image.url)?.click();
                     }}
+                    draggable
+                    onDragStart={handleNativeDragStart}
                 />
                 <Image 
                     id={image.url}

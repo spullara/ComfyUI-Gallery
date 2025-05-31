@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import type { FileDetails } from './types';
 import ReactJsonView from '@microlink/react-json-view';
 import Modal from 'antd/es/modal/Modal';
-import { ComfyAppApi, BASE_PATH } from './ComfyAppApi';
+import { ComfyAppApi, BASE_PATH, BASE_Z_INDEX } from './ComfyAppApi';
 import { useGalleryContext } from './GalleryContext';
 import Card from 'antd/es/card/Card';
 import CopyOutlined from '@ant-design/icons/lib/icons/CopyOutlined';
@@ -365,7 +365,7 @@ export function MetadataView({
                 </Card>
             )}
             <Modal
-                zIndex={3002}
+                zIndex={BASE_Z_INDEX + 2}
                 title={image ? `Raw Metadata: ${image.name}` : 'Raw Metadata'}
                 open={showRawMetadata}
                 onCancel={() => setShowRawMetadata(false)}

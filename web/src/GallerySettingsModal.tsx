@@ -3,6 +3,7 @@ import { Button, Flex, Input, Switch, Typography } from 'antd';
 import { useGalleryContext, type SettingsState } from './GalleryContext';
 import { useSetState } from 'ahooks';
 import { useEffect } from 'react';
+import { BASE_Z_INDEX } from './ComfyAppApi';
 
 const GallerySettingsModal = () => {
     const { showSettings, setShowSettings, settings, setSettings } = useGalleryContext();
@@ -26,7 +27,7 @@ const GallerySettingsModal = () => {
 
     return (
         <Modal
-            zIndex={3001}
+            zIndex={BASE_Z_INDEX + 1}
             title={"Settings"}
             open={showSettings}
             centered
@@ -115,6 +116,12 @@ const GallerySettingsModal = () => {
                     unCheckedChildren={"Light Mode"}
                     checked={staged.darkMode}
                     onChange={checked => setStaged({ darkMode: checked })}
+                />
+                <Switch
+                    checkedChildren={"Enable Ctrl+G Shortcut"}
+                    unCheckedChildren={"Disable Ctrl+G Shortcut"}
+                    checked={staged.galleryShortcut}
+                    onChange={checked => setStaged({ galleryShortcut: checked })}
                 />
             </Flex>
         </Modal>

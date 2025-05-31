@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client'
 import Gallery from './Gallery.tsx'
 import App from 'antd/es/app/App';
 import { DEFAULT_SETTINGS, STORAGE_KEY, type SettingsState } from './GalleryContext.tsx';
-import { ComfyAppApi } from './ComfyAppApi.ts';
+import { ComfyAppApi, OPEN_BUTTON_ID } from './ComfyAppApi.ts';
 import { ConfigProvider, theme } from 'antd';
 import { useLocalStorageState } from 'ahooks';
 
@@ -27,7 +27,29 @@ ComfyAppApi.registerExtension({
         );
 
         ComfyAppApi.startMonitoring(settings.relativePath);
-    }
+    },
+    async nodeCreated(node: any) {
+        try {
+            if (node.comfyClass === "GalleryNode") {
+                node.addWidget("button", "Open Gallery", null, () => {
+                    try {
+                        let settings = DEFAULT_SETTINGS;
+                        try {
+                            const raw = localStorage.getItem('comfy-ui-gallery-settings');
+                            if (raw) settings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+                        } catch {}
+                        if (settings.galleryShortcut) {
+                            document.getElementById(OPEN_BUTTON_ID)?.click();
+                        }
+                    } catch (error) {
+                        
+                    }
+                });
+            }
+        } catch (error) {
+            
+        }
+    },
 });
 
 function Main() {

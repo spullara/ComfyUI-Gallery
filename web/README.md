@@ -34,6 +34,7 @@ This ComfyUI custom node provides a feature-rich, real-time gallery directly wit
     *   **Hide Open Button:** Hide/Show the Open Gallery Button.
     *   **Show Date Divider:** Control visibility of date dividers in the grid.
     *   **Dark/Light Mode Toggle (v2.0.0):** Instantly switch between dark and light themes for comfortable viewing, directly from the settings panel.
+    *   **Enable/Disable Ctrl+G Shortcut (v2.1.0):** Toggle the keyboard shortcut for opening the gallery (Ctrl+G) on or off from the settings panel.
 *   **Sidebar (Sider) Toggle (v2.0.0):** Collapse or expand the sidebar for a distraction-free or navigational experience.
 *   **Hover to close button (v1.6.0, React version in v2.0.0):** A button appears in the header when dragging an image, allowing you to hover over it to close the gallery (useful for dropping images into your workflow).
 *   **Hotkeys navigation (v1.7.0, React version in v2.0.0):** Simple navigation with ← → arrows and ESC button while viewing images on fullscreen (provided by Ant Design's Image Preview).
@@ -84,6 +85,8 @@ This ComfyUI custom node provides a feature-rich, real-time gallery directly wit
 
 ## Changelog
 
+*   **v2.1.0:**
+    *   New setting: Enable/Disable Ctrl+G shortcut for opening the gallery, configurable in the settings panel.
 *   **v2.0.0 (React Rewrite):**
     *   Complete rewrite with React for a modern, high-performance UI.
     *   Asynchronous image loading and instant search, with a virtualized grid for smooth browsing of large collections.

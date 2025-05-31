@@ -3,10 +3,10 @@ import type { Dispatch, SetStateAction } from 'react';
 import useSize from 'ahooks/lib/useSize';
 import useRequest from 'ahooks/lib/useRequest/src/useRequest';
 import useAsyncEffect from 'ahooks/lib/useAsyncEffect';
-import { useLocalStorageState } from 'ahooks';
+import { useEventListener, useLocalStorageState } from 'ahooks';
 import type { FileDetails, FilesTree } from './types';
 import type { AutoCompleteProps } from 'antd/es/auto-complete';
-import { ComfyAppApi, BASE_PATH } from './ComfyAppApi';
+import { ComfyAppApi, BASE_PATH, OPEN_BUTTON_ID } from './ComfyAppApi';
 import { useClickAway } from 'ahooks';
 
 function getImages(): Promise<FilesTree> {
@@ -36,6 +36,7 @@ export interface SettingsState {
     autoPlayVideos: boolean;
     hideOpenButton: boolean;
     darkMode: boolean; 
+    galleryShortcut: boolean;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -47,6 +48,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     autoPlayVideos: true,
     hideOpenButton: false,
     darkMode: false, 
+    galleryShortcut: true, 
 };
 export const STORAGE_KEY = 'comfy-ui-gallery-settings';
 
@@ -271,6 +273,18 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
     useClickAway((event) => {
         setSelectedImages([]);
     }, [...imageCards])
+
+    useEventListener('keydown', (event) => {
+        console.log(event)
+        if (settingsState?.galleryShortcut && event.code == "KeyG" && event.ctrlKey) {
+            try {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                document.getElementById(OPEN_BUTTON_ID)?.click();
+            } catch {}
+        }
+    });
 
     const value = useMemo(() => ({
         currentFolder, setCurrentFolder,

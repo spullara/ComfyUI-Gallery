@@ -6,6 +6,8 @@
 type GalleryEventCallback = (event: any) => void;
 
 export const BASE_PATH = getComfyApp() ? "" : "http://localhost:8188";
+export const OPEN_BUTTON_ID = "comfy-ui-gallery-open-button";
+export const BASE_Z_INDEX = 3000;
 
 function getComfyApp() {
     try {
@@ -52,7 +54,8 @@ const mockApi = {
     registerExtension: (ext: any) => {
         console.log('[MockAPI] registerExtension called:', ext);
         try {
-            ext.init();
+            ext?.init();
+            ext?.nodeCreated();
         } catch (error) {
             
         }

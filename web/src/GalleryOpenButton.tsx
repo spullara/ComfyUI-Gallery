@@ -69,7 +69,19 @@ const GalleryOpenButton = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, [position, setPosition, savePosition]);
 
-    if (settings.hideOpenButton) return null;
+    if (settings.hideOpenButton) {
+        return (<>
+            <Button
+                id="comfy-ui-gallery-open-button"
+                onClick={() => {
+                    if (!loading) setOpen(true);
+                }}
+                style={{
+                    display: "none"
+                }}
+            ></Button>
+        </>);
+    };
 
     if (settings.floatingButton) {
         // Floating, movable button
@@ -126,6 +138,7 @@ const GalleryOpenButton = () => {
                     title="Drag to move"
                 />
                 <Button
+                    id="comfy-ui-gallery-open-button"
                     type={"primary"}
                     style={{ minWidth: 120 }}
                     onClick={() => {
@@ -140,8 +153,9 @@ const GalleryOpenButton = () => {
         );
     }
     // Not floating
-    return (
+    return (<>
         <Button
+            id="comfy-ui-gallery-open-button"
             type={"primary"}
             onClick={() => {
                 if (!loading) setOpen(true);
@@ -151,7 +165,7 @@ const GalleryOpenButton = () => {
         >
             {settings.buttonLabel || 'Open Gallery'}
         </Button>
-    );
+    </>);
 };
 
 export default GalleryOpenButton;

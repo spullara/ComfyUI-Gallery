@@ -169,7 +169,8 @@ const GallerySidebar = () => {
             )}
             <style>{`
                 .gallery-sidebar-tree-box > * {
-                    height: -webkit-fill-available;
+                    height: auto;
+                    min-height: -webkit-fill-available;
                 }
             `}</style>
             <div
@@ -181,10 +182,6 @@ const GallerySidebar = () => {
                 ref={sidebarRef}
             >
                 <Tree.DirectoryTree
-                    style={{ 
-                        // height: "100%" 
-                        backgroundColor: "#ffffff"
-                    }}
                     // @ts-ignore
                     // height={"100%"}
                     // multiple

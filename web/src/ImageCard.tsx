@@ -40,7 +40,7 @@ function ImageCard({
 
     // Use ctrlKey from click event, not global state
     const handleCardClick = (event: React.MouseEvent) => {
-        if (event.ctrlKey) {
+        if (event.ctrlKey || event.metaKey) {
             // The click dont stop
             event.stopPropagation();
             event.preventDefault();

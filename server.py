@@ -61,8 +61,10 @@ async def get_gallery_images(request):
         """Target function for the scanning thread."""
         with PromptServer.instance.scan_lock:
             try:
+                # Use the actual folder name as the root key
+                folder_name = os.path.basename(full_monitor_path)
                 folders_with_metadata, _ = _scan_for_images(
-                    full_monitor_path, "output", True
+                    full_monitor_path, folder_name, True
                 )
                 result_queue.put(folders_with_metadata)  # Put the result in the queue
             except Exception as e:

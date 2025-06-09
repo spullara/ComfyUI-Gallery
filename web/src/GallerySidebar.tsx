@@ -181,7 +181,10 @@ const GallerySidebar = () => {
                 ref={sidebarRef}
             >
                 <Tree.DirectoryTree
-                    // style={{ height: "100%" }}
+                    style={{ 
+                        // height: "100%" 
+                        backgroundColor: "#ffffff"
+                    }}
                     // @ts-ignore
                     // height={"100%"}
                     // multiple

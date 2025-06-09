@@ -73,7 +73,8 @@ class GalleryEventHandler(PatternMatchingEventHandler):
             """Target function for the scanning thread."""
 
             try:
-                new_folders_data, _ = _scan_for_images(self.base_path, "output", True)
+                folder_name = os.path.basename(self.base_path)
+                new_folders_data, _ = _scan_for_images(self.base_path, folder_name, True)
                 old_folders_data = self.last_known_folders
                 changes = detect_folder_changes(old_folders_data, new_folders_data)
 
@@ -132,7 +133,8 @@ class FileSystemMonitor:
         self.interval = interval
         self.observer = Observer()
         self.event_handler = GalleryEventHandler(base_path=base_path, patterns=["*.png", "*.jpg", "*.jpeg", "*.webp", "*.mp4", "*.gif", "*.webm"], debounce_interval=0.5)
-        self.event_handler.last_known_folders, _ = _scan_for_images(base_path, "output", True)
+        folder_name = os.path.basename(base_path)
+        self.event_handler.last_known_folders, _ = _scan_for_images(base_path, folder_name, True)
         self.thread = None
 
     def start_monitoring(self):

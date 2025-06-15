@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Flex, AutoComplete, Button, Segmented } from 'antd';
+import { Flex, AutoComplete, Button, Segmented, Modal, message, Popconfirm } from 'antd';
 import { CloseSquareFilled, DoubleLeftOutlined, DoubleRightOutlined } from '@ant-design/icons';
 import { useGalleryContext } from './GalleryContext';
 import { useDebounce, useCountDown } from 'ahooks';
 import Typography from 'antd/es/typography/Typography';
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
-import { BASE_PATH } from './ComfyAppApi';
+import { BASE_PATH, ComfyAppApi } from './ComfyAppApi';
 
 const GalleryHeader = () => {
     const {
@@ -34,6 +34,8 @@ const GalleryHeader = () => {
     const dragCounter = useRef(0);
 
     const [downloading, setDownloading] = useState(false);
+    const [showDownloadConfirm, setShowDownloadConfirm] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Show close button only when dragging
     useEffect(() => {
@@ -96,39 +98,77 @@ const GalleryHeader = () => {
                 </Button>
             </div>
             {selectedImages && selectedImages.length > 0 && (
-                <Button
-                    type="primary"
-                    loading={downloading}
-                    style={{ marginLeft: 8 }}
-                    onClick={async () => {
-                        setDownloading(true);
-                        try {
-                            
-                        } catch (error) {
-                            
-                        } 
-                        
-                        const zip = new JSZip();
-                        // Download each image as blob and add to zip
-                        await Promise.all(selectedImages.map(async (url) => {
+                <>
+                    <Popconfirm
+                        title="Download Selected Images"
+                        description={`Are you sure you want to download ${selectedImages.length} selected image(s)?`}
+                        onConfirm={async () => {
+                            setDownloading(true);
                             try {
-                                // Ensure we fetch from the correct backend path
-                                const fetchUrl = url.startsWith('http') ? url : `${BASE_PATH}${url}`;
-                                const response = await fetch(fetchUrl);
-                                const blob = await response.blob();
-                                // Extract filename from url
-                                const filename = url.split('/').pop() || 'image';
-                                zip.file(filename, blob);
-                            } catch (e) {
-                                console.error('Failed to fetch image:', url, e);
+                                const zip = new JSZip();
+                                await Promise.all(selectedImages.map(async (url) => {
+                                    try {
+                                        const fetchUrl = url.startsWith('http') ? url : `${BASE_PATH}${url}`;
+                                        const response = await fetch(fetchUrl);
+                                        const blob = await response.blob();
+                                        const filename = url.split('/').pop() || 'image';
+                                        zip.file(filename, blob);
+                                    } catch (e) {
+                                        console.error('Failed to fetch image:', url, e);
+                                    }
+                                }));
+                                const content = await zip.generateAsync({ type: 'blob' });
+                                FileSaver.saveAs(content, 'comfy-ui-gallery-images.zip');
+                            } catch (error) {
+                                message.error('Failed to download images.');
+                            } finally {
+                                setDownloading(false);
                             }
-                        }));
-                        const content = await zip.generateAsync({ type: 'blob' });
-                        FileSaver.saveAs(content, 'comfy-ui-gallery-images.zip');
-                    }}
-                >
-                    Download Selected
-                </Button>
+                        }}
+                        onCancel={() => message.info('Download cancelled')}
+                        okText={`Download (${selectedImages.length})`}
+                        cancelText="Cancel"
+                        okButtonProps={{ loading: downloading }}
+                    >
+                        <Button
+                            type="primary"
+                            loading={downloading}
+                            style={{ marginLeft: 8 }}
+                            className="selectedImagesActionButton"
+                        >
+                            Download Selected
+                        </Button>
+                    </Popconfirm>
+                    <Popconfirm
+                        title="Delete Selected Images"
+                        description={`Are you sure you want to delete ${selectedImages.length} selected image(s)? This cannot be undone.`}
+                        onConfirm={async () => {
+                            let deleted = 0;
+                            for (const url of selectedImages) {
+                                try {
+                                    await ComfyAppApi.deleteImage(url);
+                                    deleted++;
+                                    await new Promise(res => setTimeout(res, 50));
+                                } catch (e) {
+                                    console.error('Failed to delete image:', url, e);
+                                }
+                            }
+                            message.success(`Deleted ${deleted} image(s).`);
+                        }}
+                        onCancel={() => message.info('Delete cancelled')}
+                        okText={`Delete (${selectedImages.length})`}
+                        cancelText="Cancel"
+                        okButtonProps={{ danger: true }}
+                    >
+                        <Button
+                            danger
+                            style={{ marginLeft: 8 }}
+                            className="selectedImagesActionButton"
+                        >
+                            Delete Selected
+                        </Button>
+                    </Popconfirm>
+                </>
             )}
             {showClose && (
                 <div

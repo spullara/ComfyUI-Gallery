@@ -23,6 +23,10 @@ This ComfyUI custom node provides a feature-rich, real-time gallery directly wit
 *   **Delete Files (v1.5.0, React version in v2.0.0):** Delete unwanted images directly from the gallery with a confirmation prompt.
 *   **Download Files (v1.5.0, React version in v2.0.0):** Download individual images with a single click from the info view, using the original filename.
 *   **Batch Download (v2.0.0):** Select multiple images by holding Ctrl (or Cmd on Mac) and clicking on them, then click the "Download Selected" button in the header to download all selected images at once as a ZIP file.
+*   **Batch Delete (v2.3.0):** Select multiple images (or entire folders) by holding Ctrl (or Cmd on Mac) and clicking, then click the "Delete Selected" button in the header to delete all selected images at once, with confirmation and progress feedback.
+*   **Select Entire Folder (v2.3.0):** Ctrl/Cmd+Click a folder in the sidebar to select or deselect all images in that folder for batch operations (download/delete). Visual highlight indicates full-folder selection.
+*   **Improved Batch Download (v2.3.0):** Download all selected images (including from multiple folders) as a ZIP file. 
+    *   ⚠️ **Browser Limitation:** Batch download is performed client-side using JavaScript. Downloading very large folders or thousands of images may be limited by your browser's memory and performance. For best results, select a reasonable number of images at a time.
 *   **Asynchronous Image Loading (v1.5.0, significantly enhanced in v2.0.0):** Images load asynchronously for a faster gallery startup and smoother browsing experience, utilizing a virtualized grid for performance.
 *   **Improved UI (v2.0.0):** Complete rewrite with React for a modern, high-performance user interface.
 *   **Customizable Settings:** Tailor the gallery with a dedicated settings panel:

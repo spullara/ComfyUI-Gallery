@@ -60,6 +60,38 @@ const foldersToTreeData = (data: FilesTree): TreeDataNode[] => {
 // Memoize FolderTitle to avoid unnecessary re-renders
 const FolderTitle = memo(({ nodeData, currentFolder }: { nodeData: any, currentFolder: string }) => {
     const folderRef = useRef<HTMLDivElement>(null);
+    const { data, selectedImages, setSelectedImages } = useGalleryContext();
+
+    // Get all image URLs in this folder
+    const folderImages = React.useMemo(() => {
+        if (!data?.folders || !data.folders[nodeData.key]) return [];
+        return Object.values(data.folders[nodeData.key])
+            .filter((img: any) => img && img.url)
+            .map((img: any) => img.url);
+    }, [data, nodeData.key]);
+
+    // Check if all images in this folder are selected
+    const allSelected = folderImages.length > 0 && folderImages.every(url => selectedImages.includes(url));
+
+    // Handle click: ctrl/cmd toggles all images in folder
+    const handleCardClick = (event: React.MouseEvent, folder: string) => {
+        if (event.ctrlKey || event.metaKey) {
+            event.stopPropagation();
+            event.preventDefault();
+            setSelectedImages((oldSelectedImages) => {
+                if (allSelected) {
+                    // Remove all folder images
+                    return oldSelectedImages.filter(url => !folderImages.includes(url));
+                } else {
+                    // Add all folder images (avoid duplicates)
+                    return Array.from(new Set([...oldSelectedImages, ...folderImages]));
+                }
+            });
+        } else {
+            setSelectedImages([]);
+        }
+    };
+
     useDrop(folderRef, {
         onDom: (content: any, e: any) => {
             try {
@@ -87,6 +119,7 @@ const FolderTitle = memo(({ nodeData, currentFolder }: { nodeData: any, currentF
     return (
         <span
             ref={folderRef}
+            className={`folder ${allSelected ? 'folder-selected' : ''}`}
             style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -94,9 +127,18 @@ const FolderTitle = memo(({ nodeData, currentFolder }: { nodeData: any, currentF
                 borderRadius: 4,
                 transition: 'background 0.2s',
                 cursor: 'pointer',
+                background: allSelected ? 'rgba(24, 144, 255, 0.15)' : undefined,
+                border: allSelected ? '1.5px solid #1890ff' : undefined,
             }}
+            onClick={(event) => handleCardClick(event, nodeData.title)}
         >
             <span style={{ marginLeft: 0 }}>{nodeData.title}</span>
+            <style>{`
+                .folder-selected {
+                    background: rgba(24, 144, 255, 0.15) !important;
+                    border: 1.5px solid #1890ff !important;
+                }
+            `}</style>
         </span>
     );
 });
@@ -139,12 +181,16 @@ const GallerySidebar = () => {
 
     // Use FolderTitle component for each folder node (remove icon from here)
     const renderTreeTitle = useCallback((nodeData: any) => (
-        <FolderTitle nodeData={nodeData} currentFolder={currentFolder} />
+        <FolderTitle             
+            nodeData={nodeData} 
+            currentFolder={currentFolder} 
+        />
     ), [currentFolder]);
 
     // Memoize onSelect handler for performance
     const handleTreeSelect = useCallback((keys: React.Key[]) => {
         if (keys.length > 0) setCurrentFolder(keys[0] as string);
+        
     }, [setCurrentFolder]);
 
     if (siderCollapsed) return (<></>);

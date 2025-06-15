@@ -52,7 +52,14 @@ def sanitize_json_data(data):
 async def get_gallery_images(request):
     """Endpoint to get gallery images, accepts relative_path."""
     relative_path = request.rel_url.query.get("relative_path", "./")
-    full_monitor_path = os.path.normpath(os.path.join(folder_paths.get_output_directory(), "..", "output", relative_path))
+    # Fix: Only join if relative_path is not absolute or '.':
+    base_output_dir = folder_paths.get_output_directory()
+    if os.path.isabs(relative_path):
+        full_monitor_path = os.path.normpath(relative_path)
+    elif relative_path in ("./", ".", ""):  # treat as root
+        full_monitor_path = base_output_dir
+    else:
+        full_monitor_path = os.path.normpath(os.path.join(base_output_dir, relative_path))
 
     # Use a thread-safe queue to communicate between threads.
     result_queue = queue.Queue()
@@ -162,32 +169,29 @@ async def delete_image(request):
     try:
         data = await request.json()
         image_url = data.get("image_path")  # Get the image URL
-
         if not image_url:
             return web.Response(status=400, text="image_path is required")
-
         # Extract relative path from URL
         if image_url.startswith("/static_gallery/"):
             relative_path = image_url[len("/static_gallery/"):]
         else:
             return web.Response(status=400, text="Invalid image_path format")
-
-        # Construct the full absolute path
-        base_output_dir = folder_paths.get_output_directory()  # Get ComfyUI's output directory
-        # Go up one level from the *output* directory, then into "output", then the relative path
-        full_image_path = os.path.normpath(os.path.join(base_output_dir, "..", "output", relative_path))
-
-
+        # Get the static folder root (the directory being served)
+        static_route = next((r for r in PromptServer.instance.app.router.routes() if getattr(r, 'name', None) == 'static_gallery_placeholder'), None)
+        if static_route is not None:
+            static_dir = str(static_route.resource._directory)
+        else:
+            # fallback to output dir
+            static_dir = folder_paths.get_output_directory()
+        # Compose the full path
+        full_image_path = os.path.normpath(os.path.join(static_dir, relative_path))
         # Security checks:
         if not os.path.exists(full_image_path):
-            return web.Response(status=404, text=f"File not found: {full_image_path}")  # Correct path in error
-        if not full_image_path.startswith(os.path.realpath(base_output_dir)):
-             return web.Response(status=403, text="Access denied: File outside of output directory")
-
-
+            return web.Response(status=404, text=f"File not found: {full_image_path}")
+        if not full_image_path.startswith(os.path.realpath(static_dir)):
+            return web.Response(status=403, text="Access denied: File outside of static directory")
         os.remove(full_image_path)
         return web.Response(text=f"Image deleted: {image_url}")
-
     except Exception as e:
         print(f"Error deleting image: {e}")
         return web.Response(status=500, text=str(e))
@@ -213,8 +217,15 @@ async def move_image(request):
 
         # Construct the full absolute paths, correctly handling the ComfyUI output directory.
         base_output_dir = folder_paths.get_output_directory()
-        full_source_path = os.path.join(base_output_dir, source_path)
-        full_target_path = os.path.join(base_output_dir, target_path)
+        # Fix: Only join if not absolute
+        if os.path.isabs(source_path):
+            full_source_path = os.path.normpath(source_path)
+        else:
+            full_source_path = os.path.normpath(os.path.join(base_output_dir, source_path))
+        if os.path.isabs(target_path):
+            full_target_path = os.path.normpath(target_path)
+        else:
+            full_target_path = os.path.normpath(os.path.join(base_output_dir, target_path))
 
         print("base_output_dir:" + base_output_dir)
         print("full_source_path:" + full_source_path)

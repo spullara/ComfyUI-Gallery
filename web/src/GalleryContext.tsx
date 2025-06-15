@@ -265,14 +265,22 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
     }
 
     const [imageCards, setImageCards] = useState(document.querySelectorAll(".image-card"));
+    const [folders, setFolders] = useState(document.querySelectorAll(".folder"));
+    const [selectedImagesActionButtons, setSelectedImagesActionButtons] = useState(document.querySelectorAll(".selectedImagesActionButton"));
 
     useEffect(() => {
         setImageCards(document.querySelectorAll(".image-card"));
     }, [imagesDetailsList]);
+    useEffect(() => {
+        setFolders(document.querySelectorAll(".folder"));
+    }, [imagesDetailsList, currentFolder]);
+    useEffect(() => {
+        setSelectedImagesActionButtons(document.querySelectorAll(".selectedImagesActionButton"));
+    }, [selectedImages]);
 
     useClickAway((event) => {
         setSelectedImages([]);
-    }, [...imageCards])
+    }, [...imageCards, ...folders, ...selectedImagesActionButtons])
 
     useEventListener('keydown', (event) => {
         if (settingsState?.galleryShortcut && event.code == "KeyG" && event.ctrlKey) {

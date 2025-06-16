@@ -144,7 +144,7 @@ const FolderTitle = memo(({ nodeData, currentFolder }: { nodeData: any, currentF
 });
 
 const GallerySidebar = () => {
-    const { data, loading, currentFolder, setCurrentFolder, setOpen, siderCollapsed } = useGalleryContext();
+    const { data, loading, currentFolder, setCurrentFolder, setOpen, siderCollapsed, settings } = useGalleryContext();
     // Only recalculate treeData if folder structure actually changes
     const treeData = useMemo(() => {
         if (loading || !data) return [];
@@ -231,7 +231,7 @@ const GallerySidebar = () => {
                     // @ts-ignore
                     // height={"100%"}
                     // multiple
-                    defaultExpandAll
+                    defaultExpandAll={settings.expandAllFolders}
                     showLine
                     showIcon
                     onSelect={handleTreeSelect}

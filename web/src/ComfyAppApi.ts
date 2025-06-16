@@ -87,7 +87,11 @@ export const ComfyAppApi = {
     registerExtension: (ext: any) =>
         app.registerExtension(ext),
     moveImage: async (sourcePath: string, targetPath: string) => {
-        try {
+        try { 
+            console.log("moving image");
+            console.log("sourcePath:", sourcePath);
+            console.log("targetPath:", targetPath);
+
             const response = await app.api.fetchApi("/Gallery/move", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

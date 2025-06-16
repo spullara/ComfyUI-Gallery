@@ -123,6 +123,12 @@ const GallerySettingsModal = () => {
                     checked={staged.galleryShortcut}
                     onChange={checked => setStaged({ galleryShortcut: checked })}
                 />
+                <Switch
+                    checkedChildren={"Expand All Folders"}
+                    unCheckedChildren={"Collapse All Folders"}
+                    checked={staged.expandAllFolders}
+                    onChange={checked => setStaged({ expandAllFolders: checked })}
+                />
             </Flex>
         </Modal>
     );

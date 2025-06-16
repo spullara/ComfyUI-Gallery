@@ -37,6 +37,7 @@ export interface SettingsState {
     hideOpenButton: boolean;
     darkMode: boolean; 
     galleryShortcut: boolean;
+    expandAllFolders: boolean; 
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -49,6 +50,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     hideOpenButton: false,
     darkMode: false, 
     galleryShortcut: true, 
+    expandAllFolders: true, 
 };
 export const STORAGE_KEY = 'comfy-ui-gallery-settings';
 
@@ -265,14 +267,14 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
     }
 
     const [imageCards, setImageCards] = useState(document.querySelectorAll(".image-card"));
-    const [folders, setFolders] = useState(document.querySelectorAll(".folder"));
+    const [folders, setFolders] = useState(document.querySelectorAll('[role="treeitem"], .folder'));
     const [selectedImagesActionButtons, setSelectedImagesActionButtons] = useState(document.querySelectorAll(".selectedImagesActionButton"));
 
     useEffect(() => {
         setImageCards(document.querySelectorAll(".image-card"));
     }, [imagesDetailsList]);
     useEffect(() => {
-        setFolders(document.querySelectorAll(".folder"));
+        setFolders(document.querySelectorAll('[role="treeitem"], .folder'));
     }, [imagesDetailsList, currentFolder]);
     useEffect(() => {
         setSelectedImagesActionButtons(document.querySelectorAll(".selectedImagesActionButton"));

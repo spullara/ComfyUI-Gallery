@@ -1,4 +1,3 @@
-# server.py (Corrected)
 from server import PromptServer
 from aiohttp import web
 import os
@@ -198,49 +197,56 @@ async def delete_image(request):
 
 @PromptServer.instance.routes.post("/Gallery/move")
 async def move_image(request):
-    """Endpoint to move an image to a new location."""
+    """Endpoint to move an image to a new location, relative to the current gallery root (current_path)."""
     try:
         data = await request.json()
         source_path = data.get("source_path")
         target_path = data.get("target_path")
+        current_path = data.get("current_path") or data.get("relative_path") or "./"
 
-        print("source_path:" + str(source_path))
+        print(f"source_path: {source_path}")
+        print(f"target_path: {target_path}")
+        print(f"current_path: {current_path}")
 
         if not source_path or not target_path:
             return web.Response(status=400, text="source_path and target_path are required")
 
-        # Fix: Remove leading 'output/' if present
-        if source_path.startswith("output/"):
-            source_path = source_path[len("output/"):]
-        if target_path.startswith("output/"):
-            target_path = target_path[len("output/"):]
-
-        # Construct the full absolute paths, correctly handling the ComfyUI output directory.
-        base_output_dir = folder_paths.get_output_directory()
-        # Fix: Only join if not absolute
-        if os.path.isabs(source_path):
-            full_source_path = os.path.normpath(source_path)
+        # Get the static folder root (the directory being served)
+        static_route = next((r for r in PromptServer.instance.app.router.routes() if getattr(r, 'name', None) == 'static_gallery_placeholder'), None)
+        if static_route is not None:
+            static_dir = str(static_route.resource._directory)
         else:
-            full_source_path = os.path.normpath(os.path.join(base_output_dir, source_path))
-        if os.path.isabs(target_path):
-            full_target_path = os.path.normpath(target_path)
-        else:
-            full_target_path = os.path.normpath(os.path.join(base_output_dir, target_path))
+            static_dir = folder_paths.get_output_directory()
 
-        print("base_output_dir:" + base_output_dir)
-        print("full_source_path:" + full_source_path)
-        print("full_target_path:" + full_target_path)
+        static_dir_basename = os.path.basename(os.path.normpath(static_dir))
+
+        def make_path(p):
+            # If absolute, use as is
+            if os.path.isabs(p):
+                return os.path.normpath(p)
+            # If starts with static_dir_basename, strip it
+            if p.startswith(static_dir_basename + os.sep):
+                p = p[len(static_dir_basename + os.sep):]
+            elif p.startswith(static_dir_basename + "/"):
+                p = p[len(static_dir_basename + "/"):]
+            return os.path.normpath(os.path.join(static_dir, p))
+
+        full_source_path = make_path(source_path)
+        full_target_path = make_path(target_path)
+
+        print(f"static_dir: {static_dir}")
+        print(f"full_source_path: {full_source_path}")
+        print(f"full_target_path: {full_target_path}")
 
         # Security checks (CRITICAL):
         if not os.path.exists(full_source_path):
             return web.Response(status=404, text=f"Source file not found: {full_source_path}")
 
-        # Prevent path traversal outside of ComfyUI's root and output directory
-        if not os.path.realpath(full_source_path).startswith(os.path.realpath(base_output_dir)) or \
-           not os.path.realpath(full_target_path).startswith(os.path.realpath(base_output_dir)) or \
+        # Prevent path traversal outside of static_dir and comfy_path
+        if not os.path.realpath(full_source_path).startswith(os.path.realpath(static_dir)) or \
+           not os.path.realpath(full_target_path).startswith(os.path.realpath(static_dir)) or \
            not os.path.realpath(full_source_path).startswith(os.path.realpath(comfy_path)) or \
            not os.path.realpath(full_target_path).startswith(os.path.realpath(comfy_path)):
-
             return web.Response(status=403, text="Access denied: File outside of allowed directory")
 
         # If target is a directory, move into it

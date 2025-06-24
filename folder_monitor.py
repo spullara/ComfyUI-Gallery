@@ -160,9 +160,12 @@ class FileSystemMonitor:
         """Stops the Watchdog observer."""
         if self.thread and self.thread.is_alive():
             self.observer.stop()
-            self.observer.join()
+            if self.observer.is_alive():
+                self.observer.join()
             self.thread = None
             print("FileSystemMonitor: Watchdog monitoring thread stopped.")
+        else:
+            print("FileSystemMonitor: Watchdog monitoring thread was not running.")
 
 
 

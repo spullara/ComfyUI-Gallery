@@ -88,6 +88,17 @@ This ComfyUI custom node provides a feature-rich, real-time gallery directly wit
 *   **Switch Theme:** Open Settings and toggle Dark/Light mode.
 *   **Raw Metadata View:** In the info modal for an image, click "Show Raw Metadata" to inspect the full metadata.
 
+## Global Logging and Observer Control (v2.4.0+)
+
+The backend now supports **global log suppression** and **observer type switching** via the Gallery UI settings:
+
+- **Disable Logs:** Suppresses all backend logs for a cleaner console. Toggle this in the Gallery settings panel. All logs are routed through a global `gallery_log()` helper and respect the setting at runtime.
+- **Observer Type:** Switch between native and polling observers for file monitoring. This can help with compatibility on some systems. Change this in the Gallery settings panel.
+
+**If you still see logs:**
+- Make sure you are running the latest version and have restarted ComfyUI after updating.
+- All custom node logs (not from dependencies) should be suppressed when "Disable Logs" is enabled in the Gallery settings.
+
 ## Changelog
 
 *   **v2.1.0:**

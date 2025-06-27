@@ -3,11 +3,13 @@ import os
 import time
 import threading
 from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler, PatternMatchingEventHandler
 from .folder_scanner import _scan_for_images  # Import folder scanner
 import asyncio
 from server import PromptServer
 import queue
+from .gallery_config import gallery_log
 
 
 class GalleryEventHandler(PatternMatchingEventHandler):
@@ -41,7 +43,6 @@ class GalleryEventHandler(PatternMatchingEventHandler):
         if event_key in self.processed_events:
             last_processed_time = self.processed_events[event_key]
             if current_time - last_processed_time < self.debounce_interval:
-                #print(f"Ignoring duplicate event within debounce period: {event_key}")
                 return
 
         # Mark this event as processed
@@ -49,7 +50,7 @@ class GalleryEventHandler(PatternMatchingEventHandler):
 
 
         if event.event_type in ('created', 'deleted', 'modified', 'moved'):
-            print(f"Watchdog detected {event.event_type}: {event.src_path} (Real path: {real_path}) - debouncing")
+            gallery_log(f"Watchdog detected {event.event_type}: {event.src_path} (Real path: {real_path}) - debouncing")
             self.debounce_event()
 
 
@@ -64,7 +65,7 @@ class GalleryEventHandler(PatternMatchingEventHandler):
     def rescan_and_send_changes(self):
         """Rescans, detects changes, sends updates, now thread-safe."""
         if self.running_scan:
-            print("Another scan is running, skipping")
+            gallery_log("Another scan is running, skipping")
             return
 
         self.running_scan = True  # Set the flag.
@@ -94,23 +95,23 @@ class GalleryEventHandler(PatternMatchingEventHandler):
                 result = self.result_queue.get()  # Use get - BLOCKING
 
                 if isinstance(result, Exception):
-                    print(f"FileSystemMonitor: Error during scan: {result}")
+                    gallery_log(f"FileSystemMonitor: Error during scan: {result}")
                     return
 
                 changes, new_folders_data = result
 
                 if changes:
-                    print("FileSystemMonitor: Changes detected after debounce, sending updates")
+                    gallery_log("FileSystemMonitor: Changes detected after debounce, sending updates")
                     from .server import sanitize_json_data
                     # Correctly schedule the send_sync call on the main thread.
                     PromptServer.instance.send_sync("Gallery.file_change", sanitize_json_data(changes)) # NO ASYNCIO NEEDED
                 else:
-                    print("FileSystemMonitor: Changes detected by watchdog, but no relevant gallery changes after debounce.")
+                    gallery_log("FileSystemMonitor: Changes detected by watchdog, but no relevant gallery changes after debounce.")
 
                 self.last_known_folders = new_folders_data  # Update last_known_folders.
                 self.debounce_timer = None
             except queue.Empty:
-                print("FileSystemMonitor: Queue is empty, this shouldn't happen normally.")
+                gallery_log("FileSystemMonitor: Queue is empty, this shouldn't happen normally.")
 
             finally:
                 self.running_scan = False #Clear flag in all cases
@@ -128,10 +129,14 @@ class GalleryEventHandler(PatternMatchingEventHandler):
 class FileSystemMonitor:
     """Monitors the output directory, including symlinks, recursively."""
 
-    def __init__(self, base_path, interval=1.0):
+    def __init__(self, base_path, interval=1.0, use_polling_observer=False):
         self.base_path = base_path
         self.interval = interval
-        self.observer = Observer()
+        self.use_polling_observer = use_polling_observer
+        if use_polling_observer:
+            self.observer = Observer()
+        else:
+            self.observer = PollingObserver()
         self.event_handler = GalleryEventHandler(base_path=base_path, patterns=["*.png", "*.jpg", "*.jpeg", "*.webp", "*.mp4", "*.gif", "*.webm"], debounce_interval=0.5)
         folder_name = os.path.basename(base_path)
         self.event_handler.last_known_folders, _ = _scan_for_images(base_path, folder_name, True)
@@ -142,9 +147,9 @@ class FileSystemMonitor:
         if self.thread is None or not self.thread.is_alive():
             self.thread = threading.Thread(target=self._start_observer_thread, daemon=True)
             self.thread.start()
-            print("FileSystemMonitor: Watchdog monitoring thread started.")
+            gallery_log("FileSystemMonitor: Watchdog monitoring thread started.")
         else:
-            print("FileSystemMonitor: Watchdog monitoring thread already running.")
+            gallery_log("FileSystemMonitor: Watchdog monitoring thread already running.")
 
     def _start_observer_thread(self):
         self.observer.schedule(self.event_handler, self.base_path, recursive=True)
@@ -163,9 +168,9 @@ class FileSystemMonitor:
             if self.observer.is_alive():
                 self.observer.join()
             self.thread = None
-            print("FileSystemMonitor: Watchdog monitoring thread stopped.")
+            gallery_log("FileSystemMonitor: Watchdog monitoring thread stopped.")
         else:
-            print("FileSystemMonitor: Watchdog monitoring thread was not running.")
+            gallery_log("FileSystemMonitor: Watchdog monitoring thread was not running.")
 
 
 

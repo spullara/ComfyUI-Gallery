@@ -129,6 +129,18 @@ const GallerySettingsModal = () => {
                     checked={staged.expandAllFolders}
                     onChange={checked => setStaged({ expandAllFolders: checked })}
                 />
+                <Switch
+                    checkedChildren={"Disable Terminal Logs"}
+                    unCheckedChildren={"Enable Terminal Logs"}
+                    checked={staged.disableLogs}
+                    onChange={checked => setStaged({ disableLogs: checked })}
+                />
+                <Switch
+                    checkedChildren={"Use Polling Observer"}
+                    unCheckedChildren={"Use Native Observer"}
+                    checked={staged.usePollingObserver}
+                    onChange={checked => setStaged({ usePollingObserver: checked })}
+                />
             </Flex>
         </Modal>
     );

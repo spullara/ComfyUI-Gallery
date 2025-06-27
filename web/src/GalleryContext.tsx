@@ -38,6 +38,8 @@ export interface SettingsState {
     darkMode: boolean; 
     galleryShortcut: boolean;
     expandAllFolders: boolean; 
+    disableLogs: boolean;
+    usePollingObserver: boolean;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -51,6 +53,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
     darkMode: false, 
     galleryShortcut: true, 
     expandAllFolders: true, 
+    disableLogs: false,
+    usePollingObserver: false,
 };
 export const STORAGE_KEY = 'comfy-ui-gallery-settings';
 
@@ -140,13 +144,13 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
         });
     }, []);
 
-    // Watch for changes to settingsState.relativePath and update monitoring and data
+    // Watch for changes to settingsState.relativePath, disableLogs, usePollingObserver and update monitoring and data
     useEffect(() => {
         if (settingsState?.relativePath) {
-            ComfyAppApi.startMonitoring(settingsState.relativePath);
+            ComfyAppApi.startMonitoring(settingsState.relativePath, settingsState.disableLogs, settingsState.usePollingObserver);
             runAsync();
         }
-    }, [settingsState?.relativePath]);
+    }, [settingsState?.relativePath, settingsState?.disableLogs, settingsState?.usePollingObserver]);
 
     // Memoized list of all images in the current folder
     const imagesDetailsList = useMemo(() => {

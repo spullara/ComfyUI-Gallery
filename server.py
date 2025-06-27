@@ -14,6 +14,7 @@ import shutil
 
 from .folder_monitor import FileSystemMonitor
 from .folder_scanner import _scan_for_images
+from .gallery_config import disable_logs, gallery_log
 
 # Add ComfyUI root to sys.path HERE
 import sys
@@ -81,7 +82,7 @@ async def get_gallery_images(request):
 
             try:
                 if isinstance(folders_with_metadata, Exception):
-                    print(f"Error in /Gallery/images: {folders_with_metadata}")
+                    gallery_log(f"Error in /Gallery/images: {folders_with_metadata}")
                     import traceback
                     traceback.print_exc()
                     return web.Response(status=500, text=str(folders_with_metadata))
@@ -90,7 +91,7 @@ async def get_gallery_images(request):
                 json_string = json.dumps({"folders": sanitized_folders})
                 return web.Response(text=json_string, content_type="application/json")
             except Exception as e:
-                    print(f"Error in on_scan_complete: {e}")
+                    gallery_log(f"Error in on_scan_complete: {e}")
                     return web.Response(status=500, text=str(e))
 
 
@@ -107,36 +108,35 @@ async def get_gallery_images(request):
 async def start_gallery_monitor(request):
     """Endpoint to start gallery monitoring, accepts relative_path."""
     global monitor
-    if monitor and monitor.thread and monitor.thread.is_alive():
-        print("FileSystemMonitor: Monitor already running, stopping previous monitor.")
-        monitor.stop_monitoring()
-
+    from . import gallery_config
     try:
         data = await request.json()
         relative_path = data.get("relative_path", "./")
+        gallery_config.disable_logs = data.get("disable_logs", False)
+        gallery_config.use_polling_observer = data.get("use_polling_observer", False)
+        disable_logs = gallery_config.disable_logs
+        use_polling_observer = gallery_config.use_polling_observer
         full_monitor_path = os.path.normpath(os.path.join(folder_paths.get_output_directory(), "..", "output", relative_path))
-
+        gallery_log("disable_logs", disable_logs)
+        gallery_log("use_polling_observer", use_polling_observer)
+        if monitor and monitor.thread and monitor.thread.is_alive():
+            gallery_log("FileSystemMonitor: Monitor already running, stopping previous monitor.")
+            monitor.stop_monitoring()
         if not os.path.isdir(full_monitor_path):
             return web.Response(status=400, text=f"Invalid relative_path: {relative_path}, path not found")
-
-        # Find the existing placeholder route.
         for route in PromptServer.instance.app.router.routes():
             if route.name == 'static_gallery_placeholder':
-                # Modify the existing route's resource.
-                route.resource._directory = pathlib.Path(full_monitor_path) #set the new directory
-                print(f"Serving static files from {full_monitor_path} at /static_gallery")
-                break  # Exit the loop once we've found and modified the route
-        else:  # This 'else' belongs to the 'for' loop
-            print("Error: Placeholder static route not found!")
+                route.resource._directory = pathlib.Path(full_monitor_path)
+                gallery_log(f"Serving static files from {full_monitor_path} at /static_gallery")
+                break
+        else:
+            gallery_log("Error: Placeholder static route not found!")
             return web.Response(status=500, text="Placeholder route not found.")
-
-
-        monitor = FileSystemMonitor(full_monitor_path)
+        monitor = FileSystemMonitor(full_monitor_path, use_polling_observer)
         monitor.start_monitoring()
         return web.Response(text="Gallery monitor started", content_type="text/plain")
-
     except Exception as e:
-        print(f"Error starting gallery monitor: {e}")
+        gallery_log(f"Error starting gallery monitor: {e}")
         import traceback
         traceback.print_exc()
         return web.Response(status=500, text=str(e))
@@ -145,16 +145,15 @@ async def start_gallery_monitor(request):
 async def stop_gallery_monitor(request):
     """Endpoint to stop gallery monitoring."""
     global monitor
+    from .gallery_config import gallery_log
     if monitor and monitor.thread and monitor.thread.is_alive():
         monitor.stop_monitoring()
         monitor = None
-
-    # Reset to placeholder.
     for route in PromptServer.instance.app.router.routes():
-            if route.name == 'static_gallery_placeholder':
-                route.resource._directory = pathlib.Path(PLACEHOLDER_DIR)
-                print(f"Serving static files from {PLACEHOLDER_DIR} at /static_gallery")
-                break
+        if route.name == 'static_gallery_placeholder':
+            route.resource._directory = pathlib.Path(PLACEHOLDER_DIR)
+            gallery_log(f"Serving static files from {PLACEHOLDER_DIR} at /static_gallery")
+            break
     return web.Response(text="Gallery monitor stopped", content_type="text/plain")
 
 @PromptServer.instance.routes.patch("/Gallery/updateImages")
@@ -165,26 +164,23 @@ async def newSettings(request):
 @PromptServer.instance.routes.post("/Gallery/delete")
 async def delete_image(request):
     """Endpoint to delete an image."""
+    from .gallery_config import gallery_log
     try:
         data = await request.json()
-        image_url = data.get("image_path")  # Get the image URL
+        image_url = data.get("image_path")
         if not image_url:
             return web.Response(status=400, text="image_path is required")
-        # Extract relative path from URL
         if image_url.startswith("/static_gallery/"):
             relative_path = image_url[len("/static_gallery/"):]
+
         else:
             return web.Response(status=400, text="Invalid image_path format")
-        # Get the static folder root (the directory being served)
         static_route = next((r for r in PromptServer.instance.app.router.routes() if getattr(r, 'name', None) == 'static_gallery_placeholder'), None)
         if static_route is not None:
             static_dir = str(static_route.resource._directory)
         else:
-            # fallback to output dir
             static_dir = folder_paths.get_output_directory()
-        # Compose the full path
         full_image_path = os.path.normpath(os.path.join(static_dir, relative_path))
-        # Security checks:
         if not os.path.exists(full_image_path):
             return web.Response(status=404, text=f"File not found: {full_image_path}")
         if not full_image_path.startswith(os.path.realpath(static_dir)):
@@ -192,78 +188,58 @@ async def delete_image(request):
         os.remove(full_image_path)
         return web.Response(text=f"Image deleted: {image_url}")
     except Exception as e:
-        print(f"Error deleting image: {e}")
+        gallery_log(f"Error deleting image: {e}")
         return web.Response(status=500, text=str(e))
 
 @PromptServer.instance.routes.post("/Gallery/move")
 async def move_image(request):
     """Endpoint to move an image to a new location, relative to the current gallery root (current_path)."""
+    from .gallery_config import disable_logs, gallery_log
     try:
         data = await request.json()
         source_path = data.get("source_path")
         target_path = data.get("target_path")
         current_path = data.get("current_path") or data.get("relative_path") or "./"
-
-        print(f"source_path: {source_path}")
-        print(f"target_path: {target_path}")
-        print(f"current_path: {current_path}")
-
+        gallery_log(f"source_path: {source_path}")
+        gallery_log(f"target_path: {target_path}")
+        gallery_log(f"current_path: {current_path}")
         if not source_path or not target_path:
             return web.Response(status=400, text="source_path and target_path are required")
-
-        # Get the static folder root (the directory being served)
         static_route = next((r for r in PromptServer.instance.app.router.routes() if getattr(r, 'name', None) == 'static_gallery_placeholder'), None)
         if static_route is not None:
             static_dir = str(static_route.resource._directory)
         else:
             static_dir = folder_paths.get_output_directory()
-
         static_dir_basename = os.path.basename(os.path.normpath(static_dir))
-
         def make_path(p):
-            # If absolute, use as is
             if os.path.isabs(p):
                 return os.path.normpath(p)
-            # If starts with static_dir_basename, strip it
             if p.startswith(static_dir_basename + os.sep):
                 p = p[len(static_dir_basename + os.sep):]
             elif p.startswith(static_dir_basename + "/"):
-                p = p[len(static_dir_basename + "/"):]
+                p = p[len(static_dir_basename + "/") :]
             return os.path.normpath(os.path.join(static_dir, p))
-
         full_source_path = make_path(source_path)
         full_target_path = make_path(target_path)
-
-        print(f"static_dir: {static_dir}")
-        print(f"full_source_path: {full_source_path}")
-        print(f"full_target_path: {full_target_path}")
-
-        # Security checks (CRITICAL):
+        gallery_log(f"static_dir: {static_dir}")
+        gallery_log(f"full_source_path: {full_source_path}")
+        gallery_log(f"full_target_path: {full_target_path}")
         if not os.path.exists(full_source_path):
             return web.Response(status=404, text=f"Source file not found: {full_source_path}")
-
-        # Prevent path traversal outside of static_dir and comfy_path
         if not os.path.realpath(full_source_path).startswith(os.path.realpath(static_dir)) or \
            not os.path.realpath(full_target_path).startswith(os.path.realpath(static_dir)) or \
            not os.path.realpath(full_source_path).startswith(os.path.realpath(comfy_path)) or \
            not os.path.realpath(full_target_path).startswith(os.path.realpath(comfy_path)):
             return web.Response(status=403, text="Access denied: File outside of allowed directory")
-
-        # If target is a directory, move into it
         if os.path.isdir(full_target_path):
             full_target_path = os.path.join(full_target_path, os.path.basename(full_source_path))
-
-        # Create target directory if it doesn't exist:
         target_dir = os.path.dirname(full_target_path)
         if not os.path.exists(target_dir):
             os.makedirs(target_dir, exist_ok=True)
-
-        # Perform the move:
         shutil.move(full_source_path, full_target_path)
         return web.Response(text=f"Image moved from {source_path} to {target_path}")
-
     except Exception as e:
-        print(f"Error moving image: {e}")
+        gallery_log(f"Error moving image: {e}")
         import traceback
-        traceback.print_exc()  # Always good for debugging
+        traceback.print_exc()
         return web.Response(status=500, text=str(e))

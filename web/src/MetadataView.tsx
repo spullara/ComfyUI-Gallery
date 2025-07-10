@@ -1,5 +1,5 @@
 import { Typography, Button, Flex, Descriptions, Tooltip, message, Image, Popconfirm } from 'antd';
-import { parseComfyMetadata } from './metadataParser';
+import { parseComfyMetadata } from './metadata-parser/metadataParser';
 import { useState, useMemo, useCallback } from 'react';
 import type { FileDetails } from './types';
 import ReactJsonView from '@microlink/react-json-view';

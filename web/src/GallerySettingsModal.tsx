@@ -79,7 +79,7 @@ const GallerySettingsModal = () => {
                     <Typography.Title 
                         level={5}
                     >
-                        Button Label:
+                        Button label:
                     </Typography.Title>
                     <Input 
                         value={staged.buttonLabel} 

@@ -125,7 +125,8 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
     const [autoCompleteOptions, setAutoCompleteOptions] = useState<NonNullable<AutoCompleteProps['options']>>([]);
 
     // Migration: Update old settings to disable autoplay and add new settings
-    const migrateSettings = () => {
+    // This runs once before the component mounts
+    const getInitialSettings = (): SettingsState => {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
@@ -142,15 +143,18 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
                     migratedSettings.cardSize = 'large';
                 }
 
+                // Save migrated settings back
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedSettings));
                 return migratedSettings;
             }
-        } catch {}
+        } catch (e) {
+            console.error('Error migrating settings:', e);
+        }
         return DEFAULT_SETTINGS;
     };
 
     const [settingsState, setSettings] = useLocalStorageState<SettingsState>(STORAGE_KEY, {
-        defaultValue: migrateSettings(),
+        defaultValue: getInitialSettings(),
         listenStorageChange: true,
     });
 

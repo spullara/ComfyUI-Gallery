@@ -31,7 +31,6 @@ const GallerySettingsModal = () => {
             title={"Settings"}
             open={showSettings}
             centered
-            afterOpenChange={setShowSettings}
             onOk={handleSave}
             onCancel={handleCancel}
             footer={[

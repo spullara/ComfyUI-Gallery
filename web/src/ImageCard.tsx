@@ -1,6 +1,8 @@
 import { Button, Image, Typography } from 'antd';
 import type { FileDetails } from './types';
 import InfoCircleOutlined from '@ant-design/icons/lib/icons/InfoCircleOutlined';
+import PlayCircleOutlined from '@ant-design/icons/lib/icons/PlayCircleOutlined';
+import PauseCircleOutlined from '@ant-design/icons/lib/icons/PauseCircleOutlined';
 import React, { useRef, useState, useEffect } from 'react';
 import { useDrag, useEventListener } from 'ahooks';
 import { useGalleryContext } from './GalleryContext';
@@ -38,6 +40,7 @@ function ImageCard({
     const videoRef = useRef<HTMLVideoElement>(null);
     const [dragging, setDragging] = useState(false);
     const [videoSrc, setVideoSrc] = useState<string | undefined>(undefined);
+    const [isPlaying, setIsPlaying] = useState(false);
 
     const cardDimensions = getCardDimensions(settings.cardSize);
 
@@ -112,6 +115,22 @@ function ImageCard({
         // event.dataTransfer.setDragImage(event.currentTarget, 10, 10);
     };
 
+    // Handle video play/pause
+    const handleVideoPlayPause = (event: React.MouseEvent) => {
+        event.stopPropagation();
+        event.preventDefault();
+
+        if (videoRef.current) {
+            if (isPlaying) {
+                videoRef.current.pause();
+                setIsPlaying(false);
+            } else {
+                videoRef.current.play();
+                setIsPlaying(true);
+            }
+        }
+    };
+
     return (<>
         <div
             className='image-card'
@@ -157,25 +176,47 @@ function ImageCard({
                     ref={videoRef}
                     style={{
                         maxHeight: cardDimensions.height,
+                        maxWidth: cardDimensions.width,
+                        width: '100%',
+                        height: 'auto',
                         cursor: "pointer"
                     }}
                     src={videoSrc}
                     autoPlay={false}
                     loop={false}
-                    muted={true}
+                    muted={false}
+                    controls={isPlaying}
                     preload="none"
-                    onClick={() => {
-                        onVideoClick(image.name);
-                        document.getElementById(image.url)?.click();
-                    }}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => setIsPlaying(false)}
                     draggable
                     onDragStart={handleNativeDragStart}
                 />
-                <Image 
+                {!isPlaying && (
+                    <Button
+                        type="primary"
+                        shape="circle"
+                        size="large"
+                        icon={<PlayCircleOutlined />}
+                        style={{
+                            position: 'absolute',
+                            fontSize: '48px',
+                            width: '64px',
+                            height: '64px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: 0.9,
+                        }}
+                        onClick={handleVideoPlayPause}
+                    />
+                )}
+                <Image
                     id={image.url}
-                    style={{ 
+                    style={{
                         display: "none"
-                    }} 
+                    }}
                     src={`${BASE_PATH}${image.url}`}
                     loading="lazy"
                     // preview={false}

@@ -124,18 +124,26 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
     const [autoSizer, setAutoSizer] = useState({ width: 1000, height: 600 });
     const [autoCompleteOptions, setAutoCompleteOptions] = useState<NonNullable<AutoCompleteProps['options']>>([]);
 
-    // Migration: Update old settings to disable autoplay
+    // Migration: Update old settings to disable autoplay and add new settings
     const migrateSettings = () => {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
                 const oldSettings = JSON.parse(raw);
+                let migratedSettings = { ...DEFAULT_SETTINGS, ...oldSettings };
+
                 // If autoPlayVideos was true (old default), set it to false (new default)
                 if (oldSettings.autoPlayVideos === true) {
-                    const migratedSettings = { ...oldSettings, autoPlayVideos: false };
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedSettings));
-                    return migratedSettings;
+                    migratedSettings.autoPlayVideos = false;
                 }
+
+                // Ensure cardSize exists (add if missing)
+                if (!oldSettings.cardSize) {
+                    migratedSettings.cardSize = 'large';
+                }
+
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedSettings));
+                return migratedSettings;
             }
         } catch {}
         return DEFAULT_SETTINGS;

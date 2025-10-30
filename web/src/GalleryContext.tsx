@@ -121,8 +121,26 @@ export function GalleryProvider({ children }: { children: React.ReactNode }) {
     const [gridSize, setGridSize] = useState({ width: 1000, height: 600, columnCount: 1, rowCount: 1 });
     const [autoSizer, setAutoSizer] = useState({ width: 1000, height: 600 });
     const [autoCompleteOptions, setAutoCompleteOptions] = useState<NonNullable<AutoCompleteProps['options']>>([]);
+
+    // Migration: Update old settings to disable autoplay
+    const migrateSettings = () => {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const oldSettings = JSON.parse(raw);
+                // If autoPlayVideos was true (old default), set it to false (new default)
+                if (oldSettings.autoPlayVideos === true) {
+                    const migratedSettings = { ...oldSettings, autoPlayVideos: false };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedSettings));
+                    return migratedSettings;
+                }
+            }
+        } catch {}
+        return DEFAULT_SETTINGS;
+    };
+
     const [settingsState, setSettings] = useLocalStorageState<SettingsState>(STORAGE_KEY, {
-        defaultValue: DEFAULT_SETTINGS,
+        defaultValue: migrateSettings(),
         listenStorageChange: true,
     });
 

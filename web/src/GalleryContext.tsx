@@ -35,11 +35,12 @@ export interface SettingsState {
     floatingButton: boolean;
     autoPlayVideos: boolean;
     hideOpenButton: boolean;
-    darkMode: boolean; 
+    darkMode: boolean;
     galleryShortcut: boolean;
-    expandAllFolders: boolean; 
+    expandAllFolders: boolean;
     disableLogs: boolean;
     usePollingObserver: boolean;
+    cardSize: 'small' | 'medium' | 'large';
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -55,6 +56,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     expandAllFolders: true,
     disableLogs: false,
     usePollingObserver: false,
+    cardSize: 'large',
 };
 export const STORAGE_KEY = 'comfy-ui-gallery-settings';
 

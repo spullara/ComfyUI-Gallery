@@ -2,7 +2,7 @@ import React, { useMemo, useCallback, useEffect, useRef } from 'react';
 import { Empty, Image, Spin } from 'antd';
 import { AutoSizer } from 'react-virtualized';
 import { FixedSizeGrid } from 'react-window';
-import ImageCard, { ImageCardHeight, ImageCardWidth } from './ImageCard';
+import ImageCard, { ImageCardHeight, ImageCardWidth, getCardDimensions } from './ImageCard';
 import { useGalleryContext } from './GalleryContext';
 import { MetadataView } from './MetadataView';
 import type { FileDetails } from './types';
@@ -25,9 +25,10 @@ const GalleryImageGrid = () => {
         showRawMetadata,
         setShowRawMetadata,
         settings,
-        loading 
+        loading
     } = useGalleryContext();
     const containerRef = useRef<HTMLDivElement>(null);
+    const cardDimensions = getCardDimensions(settings.cardSize);
     const imagesDetailsList = useMemo(() => {
         let list: FileDetails[] = Object.values(data?.folders?.[currentFolder] ?? []);
         if (searchFileName && searchFileName.trim() !== "") {
@@ -85,20 +86,20 @@ const GalleryImageGrid = () => {
         if (image.type === 'divider') {
             if (columnIndex !== 0) return null;
             return (
-                <div 
-                    key={`divider-${index}`} 
-                    style={{ 
-                        ...style, 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        width: `calc(${gridSize.columnCount} * ${ImageCardWidth + 16}px)`, 
-                        gridColumn: `span ${gridSize.columnCount}`, 
-                        background: 'transparent', 
-                        padding: 0, 
-                        minHeight: 48, 
-                        position: 'absolute', 
-                        zIndex: 2 
+                <div
+                    key={`divider-${index}`}
+                    style={{
+                        ...style,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: `calc(${gridSize.columnCount} * ${cardDimensions.width + 16}px)`,
+                        gridColumn: `span ${gridSize.columnCount}`,
+                        background: 'transparent',
+                        padding: 0,
+                        minHeight: 48,
+                        position: 'absolute',
+                        zIndex: 2
                     }}
                 >
                     <div 
@@ -182,10 +183,10 @@ const GalleryImageGrid = () => {
 
     useEffect(() => {
         const { width, height } = autoSizer;
-        const columnCount = Math.max(1, Math.floor(width / (ImageCardWidth + 16)));
+        const columnCount = Math.max(1, Math.floor(width / (cardDimensions.width + 16)));
         const rowCount = Math.ceil(imagesDetailsList.length / columnCount);
         setGridSize({ width, height, columnCount, rowCount });
-    }, [autoSizer.width, autoSizer.height, imagesDetailsList.length]);
+    }, [autoSizer.width, autoSizer.height, imagesDetailsList.length, cardDimensions.width]);
 
     useEffect(() => {
         const grid = document.querySelector(".grid-element");
@@ -359,15 +360,15 @@ const GalleryImageGrid = () => {
                                 <FixedSizeGrid
                                     columnCount={gridSize.columnCount}
                                     rowCount={gridSize.rowCount}
-                                    columnWidth={ImageCardWidth + 16}
-                                    rowHeight={ImageCardHeight + 16}
+                                    columnWidth={cardDimensions.width + 16}
+                                    rowHeight={cardDimensions.height + 16}
                                     width={width}
                                     height={height}
                                     className={"grid-element"}
-                                    style={{ 
-                                        display: "flex", 
-                                        alignContent: "center", 
-                                        justifyContent: "center" 
+                                    style={{
+                                        display: "flex",
+                                        alignContent: "center",
+                                        justifyContent: "center"
                                     }}
                                 >
                                     {Cell}

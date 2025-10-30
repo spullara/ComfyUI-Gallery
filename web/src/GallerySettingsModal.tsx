@@ -1,5 +1,5 @@
 import Modal from 'antd/es/modal/Modal';
-import { Button, Flex, Input, Switch, Typography } from 'antd';
+import { Button, Flex, Input, Segmented, Switch, Typography } from 'antd';
 import { useGalleryContext, type SettingsState } from './GalleryContext';
 import { useSetState } from 'ahooks';
 import { useEffect } from 'react';
@@ -85,6 +85,23 @@ const GallerySettingsModal = () => {
                     <Input 
                         value={staged.buttonLabel} 
                         onChange={e => setStaged({ buttonLabel: e.target.value })} 
+                    />
+                </div>
+                <div>
+                    <Typography.Title
+                        level={5}
+                    >
+                        Card Size:
+                    </Typography.Title>
+                    <Segmented
+                        options={[
+                            { label: 'Small', value: 'small' },
+                            { label: 'Medium', value: 'medium' },
+                            { label: 'Large', value: 'large' }
+                        ]}
+                        value={staged.cardSize}
+                        onChange={(value) => setStaged({ cardSize: value as 'small' | 'medium' | 'large' })}
+                        block
                     />
                 </div>
                 <Switch

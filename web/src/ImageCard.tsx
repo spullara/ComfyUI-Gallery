@@ -5,9 +5,22 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useDrag, useEventListener } from 'ahooks';
 import { useGalleryContext } from './GalleryContext';
 import { BASE_PATH } from './ComfyAppApi';
+import type { SettingsState } from './GalleryContext';
 
 export const ImageCardWidth = 350;
 export const ImageCardHeight = 450;
+
+export function getCardDimensions(size: SettingsState['cardSize']) {
+    switch (size) {
+        case 'small':
+            return { width: 200, height: 260 };
+        case 'medium':
+            return { width: 275, height: 355 };
+        case 'large':
+        default:
+            return { width: 350, height: 450 };
+    }
+}
 
 function ImageCard({
     image,
@@ -25,6 +38,8 @@ function ImageCard({
     const videoRef = useRef<HTMLVideoElement>(null);
     const [dragging, setDragging] = useState(false);
     const [videoSrc, setVideoSrc] = useState<string | undefined>(undefined);
+
+    const cardDimensions = getCardDimensions(settings.cardSize);
 
     useDrag(
         {
@@ -102,8 +117,8 @@ function ImageCard({
             className='image-card'
             ref={dragRef}
             style={{
-                width: ImageCardWidth,
-                height: ImageCardHeight,
+                width: cardDimensions.width,
+                height: cardDimensions.height,
                 borderRadius: 8,
                 overflow: "hidden",
                 margin: "15px",
@@ -120,16 +135,16 @@ function ImageCard({
             onClick={handleCardClick}
         >
             {image.type == "image" ? (<>
-                <Image 
+                <Image
                     id={image.url}
-                    style={{ 
+                    style={{
                         objectFit: "cover",
-                        maxWidth: ImageCardWidth,
+                        maxWidth: cardDimensions.width,
                         width: '100%',
                         height: 'auto',
                         userSelect: 'none',
                         cursor: 'grab',
-                    }} 
+                    }}
                     src={`${BASE_PATH}${image.url}`}
                     loading="lazy"
                     // preview={false}
@@ -141,7 +156,7 @@ function ImageCard({
                 <video
                     ref={videoRef}
                     style={{
-                        maxHeight: ImageCardHeight,
+                        maxHeight: cardDimensions.height,
                         cursor: "pointer"
                     }}
                     src={videoSrc}

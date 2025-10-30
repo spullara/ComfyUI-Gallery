@@ -1,7 +1,7 @@
 import { Button, Image, Typography } from 'antd';
 import type { FileDetails } from './types';
 import InfoCircleOutlined from '@ant-design/icons/lib/icons/InfoCircleOutlined';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useDrag, useEventListener } from 'ahooks';
 import { useGalleryContext } from './GalleryContext';
 import { BASE_PATH } from './ComfyAppApi';
@@ -22,7 +22,9 @@ function ImageCard({
 }) {
     const { settings, selectedImages, setSelectedImages } = useGalleryContext();
     const dragRef = useRef<HTMLDivElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
     const [dragging, setDragging] = useState(false);
+    const [videoSrc, setVideoSrc] = useState<string | undefined>(undefined);
 
     useDrag(
         {
@@ -37,6 +39,30 @@ function ImageCard({
             onDragEnd: () => setDragging(false),
         }
     );
+
+    // Lazy load videos using Intersection Observer
+    useEffect(() => {
+        if (image.type !== 'media' || !videoRef.current) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting && !videoSrc) {
+                        setVideoSrc(`${BASE_PATH}${image.url}`);
+                    }
+                });
+            },
+            {
+                rootMargin: '50px', // Start loading slightly before the video enters viewport
+            }
+        );
+
+        observer.observe(videoRef.current);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [image.type, image.url, videoSrc]);
 
     // Use ctrlKey from click event, not global state
     const handleCardClick = (event: React.MouseEvent) => {
@@ -113,15 +139,16 @@ function ImageCard({
                 />
             </>) : <>
                 <video
-                    style={{ 
+                    ref={videoRef}
+                    style={{
                         maxHeight: ImageCardHeight,
                         cursor: "pointer"
-                    }} 
-                    src={`${BASE_PATH}${image.url}`}
-                    autoPlay={settings.autoPlayVideos}
-                    loop={settings.autoPlayVideos}
+                    }}
+                    src={videoSrc}
+                    autoPlay={false}
+                    loop={false}
                     muted={true}
-                    preload={!settings.autoPlayVideos ? undefined : "none"}
+                    preload="none"
                     onClick={() => {
                         onVideoClick(image.name);
                         document.getElementById(image.url)?.click();

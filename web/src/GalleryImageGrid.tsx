@@ -266,7 +266,7 @@ const GalleryImageGrid = () => {
                     width: "80%"
                 }}
                 src={`${BASE_PATH}${image.url}`}
-                autoPlay={true}
+                autoPlay={settings.autoPlayVideos}
                 controls={true}
                 preload="none"
                 ref={el => {
